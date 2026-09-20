@@ -74,16 +74,3 @@ Open your browser to:
 
 ---
 
-## Team Integration Reference
-
-### For Afsana (Communication / Twilio):
-- Reminder rows are automatically created in PostgreSQL by the appointment engine with status `SCHEDULED` or `SKIPPED`.
-- Each reminder includes `channel` (`SMS` or `VOICE`), `scheduledFor` (UTC execution time), and `leadMinutes`.
-- You can hook BullMQ workers to process these records and dispatch via Twilio.
-
-### For Subhashini (Dashboard & Docs):
-- All endpoints live under `/v1/`.
-- Authenticate requests using `Authorization: Bearer <API_KEY>`.
-- Use `GET /v1/appointments/:appointment_id` to retrieve appointment details, status, and reminder schedules.
-- Use `GET /v1/health` for connection/liveness status.
-- Refer to `http://localhost:3000/docs` for the interactive schema definitions and DTO structures.
