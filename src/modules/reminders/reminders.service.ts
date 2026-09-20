@@ -1,5 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { ReminderChannel, ReminderStatus } from '@prisma/client';
 
@@ -28,6 +30,7 @@ export class RemindersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly configService: ConfigService,
+    @InjectQueue('reminders') private readonly reminderQueue: Queue,
   ) {
     this.defaultSmsLead = this.configService.get<number>('reminders.defaultSmsLeadMinutes', 60);
     this.defaultVoiceLead = this.configService.get<number>('reminders.defaultVoiceLeadMinutes', 30);
@@ -109,7 +112,7 @@ export class RemindersService {
   }
 
   /**
-   * Persists reminder records for an appointment in the database
+   * Persists reminder records in PostgreSQL and enqueues delayed jobs into BullMQ
    */
   async createRemindersForAppointment(
     tenantId: string,
@@ -120,6 +123,7 @@ export class RemindersService {
     const plan = this.calculateSchedule(appointmentUtc, now);
     const created = [];
 
+    // 1. Persist and enqueue SMS reminder
     if (plan.sms && plan.sms.status !== ReminderStatus.SKIPPED) {
       const smsReminder = await this.prisma.reminder.create({
         data: {
@@ -133,8 +137,13 @@ export class RemindersService {
         },
       });
       created.push(smsReminder);
+
+      if (smsReminder.status === ReminderStatus.SCHEDULED) {
+        await this.enqueueDelayedJob(smsReminder.id, appointmentId, tenantId, ReminderChannel.SMS, smsReminder.scheduledFor, now);
+      }
     }
 
+    // 2. Persist and enqueue Voice reminder
     if (plan.voice) {
       const voiceReminder = await this.prisma.reminder.create({
         data: {
@@ -148,15 +157,78 @@ export class RemindersService {
         },
       });
       created.push(voiceReminder);
+
+      if (voiceReminder.status === ReminderStatus.SCHEDULED) {
+        await this.enqueueDelayedJob(voiceReminder.id, appointmentId, tenantId, ReminderChannel.VOICE, voiceReminder.scheduledFor, now);
+      }
     }
 
     return { plan, reminders: created };
   }
 
   /**
-   * Cancels all pending reminders for an appointment (e.g. when cancelled or rescheduled)
+   * Schedules a delayed job in BullMQ with deterministic ID for instant removal
+   */
+  private async enqueueDelayedJob(
+    reminderId: string,
+    appointmentId: string,
+    tenantId: string,
+    channel: ReminderChannel,
+    scheduledFor: Date,
+    now: Date,
+  ) {
+    const delayMs = Math.max(0, scheduledFor.getTime() - now.getTime());
+    const jobId = `reminder:${reminderId}`;
+
+    await this.reminderQueue.add(
+      'send_reminder',
+      {
+        reminderId,
+        appointmentId,
+        tenantId,
+        channel,
+      },
+      {
+        jobId,
+        delay: delayMs,
+        attempts: 3,
+        backoff: {
+          type: 'exponential',
+          delay: 5000,
+        },
+        removeOnComplete: true,
+        removeOnFail: false,
+      },
+    );
+
+    this.logger.log(`[BullMQ Queue] Enqueued ${channel} job "${jobId}" with delay ${delayMs}ms`);
+  }
+
+  /**
+   * Cancels pending reminders in PostgreSQL AND removes them from the BullMQ Redis queue
    */
   async cancelPendingReminders(tenantId: string, appointmentId: string, reason: string = 'Appointment cancelled') {
+    // 1. Find all pending reminders for this appointment
+    const pendingReminders = await this.prisma.reminder.findMany({
+      where: {
+        tenantId,
+        appointmentId,
+        status: ReminderStatus.SCHEDULED,
+      },
+    });
+
+    // 2. Remove each from BullMQ queue
+    for (const reminder of pendingReminders) {
+      const jobId = `reminder:${reminder.id}`;
+      try {
+        await this.reminderQueue.remove(jobId);
+        this.logger.log(`[BullMQ Queue] Removed pending job "${jobId}" from Redis queue`);
+      } catch (err: any) {
+        this.logger.warn(`Could not remove job "${jobId}" from queue: ${err.message}`);
+      }
+    }
+
+    // 3. Mark as CANCELLED in PostgreSQL
     return this.prisma.reminder.updateMany({
       where: {
         tenantId,
@@ -171,7 +243,8 @@ export class RemindersService {
   }
 
   /**
-   * Recalculates reminders for a rescheduled appointment
+   * Recalculates reminders for a rescheduled appointment:
+   * Removes old pending jobs from Redis and enqueues new delayed jobs
    */
   async rescheduleReminders(
     tenantId: string,
@@ -179,10 +252,10 @@ export class RemindersService {
     newAppointmentUtc: Date,
     now: Date = new Date(),
   ) {
-    // 1. Cancel previous pending reminders
+    // 1. Cancel previous pending reminders from both PostgreSQL and BullMQ
     await this.cancelPendingReminders(tenantId, appointmentId, 'Appointment rescheduled');
 
-    // 2. Schedule new reminders
+    // 2. Schedule new reminders with recalculated delays
     return this.createRemindersForAppointment(tenantId, appointmentId, newAppointmentUtc, now);
   }
 

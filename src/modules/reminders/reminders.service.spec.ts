@@ -4,6 +4,8 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
 import { ReminderChannel, ReminderStatus } from '@prisma/client';
 
+import { getQueueToken } from '@nestjs/bullmq';
+
 describe('RemindersService (Schedule & Late Booking Engine)', () => {
   let service: RemindersService;
 
@@ -19,6 +21,13 @@ describe('RemindersService (Schedule & Late Booking Engine)', () => {
           provide: ConfigService,
           useValue: {
             get: (key: string, defaultVal: any) => defaultVal,
+          },
+        },
+        {
+          provide: getQueueToken('reminders'),
+          useValue: {
+            add: jest.fn(),
+            remove: jest.fn(),
           },
         },
       ],
