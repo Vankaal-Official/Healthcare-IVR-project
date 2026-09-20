@@ -59,9 +59,9 @@ export class PhiMasker {
   }
 
   /**
-   * Recursively sanitizes any payload object or array
+   * Recursively sanitizes any payload object or array, guarding against circular structures
    */
-  static sanitize(obj: any): any {
+  static sanitize(obj: any, seen: WeakSet<object> = new WeakSet()): any {
     if (obj === null || obj === undefined) return obj;
 
     if (typeof obj === 'string') {
@@ -72,11 +72,17 @@ export class PhiMasker {
       return obj;
     }
 
-    if (Array.isArray(obj)) {
-      return obj.map((item) => this.sanitize(item));
-    }
-
     if (typeof obj === 'object') {
+      // Guard against circular references (e.g., Express req/res context)
+      if (seen.has(obj)) {
+        return '[Circular]';
+      }
+      seen.add(obj);
+
+      if (Array.isArray(obj)) {
+        return obj.map((item) => this.sanitize(item, seen));
+      }
+
       const sanitized: Record<string, any> = {};
       for (const [key, value] of Object.entries(obj)) {
         const normalizedKey = key.toLowerCase().replace(/[-_]/g, '');
@@ -89,11 +95,11 @@ export class PhiMasker {
           normalizedKey.includes('auth') ||
           normalizedKey.includes('token') ||
           normalizedKey.includes('secret') ||
-          normalizedKey.includes('key') && !normalizedKey.includes('id')
+          (normalizedKey.includes('key') && !normalizedKey.includes('id'))
         ) {
           sanitized[key] = typeof value === 'string' ? this.maskSecret(value) : '***';
         } else {
-          sanitized[key] = this.sanitize(value);
+          sanitized[key] = this.sanitize(value, seen);
         }
       }
       return sanitized;
