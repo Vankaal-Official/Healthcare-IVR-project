@@ -178,7 +178,7 @@ export class RemindersService {
     now: Date,
   ) {
     const delayMs = Math.max(0, scheduledFor.getTime() - now.getTime());
-    const jobId = `reminder:${reminderId}`;
+    const jobId = `reminder_${reminderId}`;
 
     await this.reminderQueue.add(
       'send_reminder',
@@ -219,7 +219,7 @@ export class RemindersService {
 
     // 2. Remove each from BullMQ queue
     for (const reminder of pendingReminders) {
-      const jobId = `reminder:${reminder.id}`;
+      const jobId = `reminder_${reminder.id}`;
       try {
         await this.reminderQueue.remove(jobId);
         this.logger.log(`[BullMQ Queue] Removed pending job "${jobId}" from Redis queue`);

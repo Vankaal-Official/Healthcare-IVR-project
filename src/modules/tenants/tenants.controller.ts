@@ -19,6 +19,13 @@ export class TenantsController {
     return this.tenantsService.createTenant(dto);
   }
 
+  @Public()
+  @Get('telemetry')
+  @ApiOperation({ summary: 'Live operational and financial telemetry for Van-Kaal suite' })
+  async getTelemetry() {
+    return this.tenantsService.getVanKaalTelemetry();
+  }
+
   @Get('me')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get current authenticated tenant profile' })

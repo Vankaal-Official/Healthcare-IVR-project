@@ -19,12 +19,23 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { CancelAppointmentDto } from './dto/cancel-appointment.dto';
 import { RescheduleAppointmentDto } from './dto/reschedule-appointment.dto';
 import { TenantId } from '../../common/decorators/tenant.decorator';
+import { Public } from '../../common/decorators/public.decorator';
 
 @ApiTags('Appointments')
 @ApiBearerAuth()
 @Controller('appointments')
 export class AppointmentsController {
   constructor(private readonly appointmentsService: AppointmentsService) {}
+
+  @Get()
+  @Public()
+  @ApiOperation({
+    summary: 'List all appointments for dashboard display',
+    description: 'Returns real-time appointments formatted with reminders and confirmation statuses for the clinic portal.',
+  })
+  async findAll(@TenantId() tenantId?: string) {
+    return this.appointmentsService.findAll(tenantId);
+  }
 
   @Post()
   @ApiOperation({

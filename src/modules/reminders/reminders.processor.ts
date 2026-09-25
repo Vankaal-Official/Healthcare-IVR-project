@@ -66,13 +66,53 @@ export class RemindersProcessor extends WorkerHost {
     });
 
     try {
-      // 4. Communication Provider Execution (Abstraction point for Afsana's Twilio SDK)
+      // 4. Communication Provider Execution (Vapi Voice AI / Twilio SDK)
       this.logger.log(
         `[Worker] Dispatching ${channel} to ${appointment.patientPhone} for Dr. ${appointment.doctorName} at ${appointment.practice.name}`,
       );
 
-      // In production, Afsana's Twilio provider will return the Twilio Message / Call SID
-      const providerRef = `mock_twilio_${channel.toLowerCase()}_${Date.now()}`;
+      let providerRef = `mock_dispatch_${channel.toLowerCase()}_${Date.now()}`;
+
+      if (channel === ReminderChannel.VOICE && process.env.VAPI_API_KEY && process.env.VAPI_PHONE_NUMBER_ID) {
+        try {
+          const vapiResponse = await fetch('https://api.vapi.ai/call/phone', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${process.env.VAPI_API_KEY}`,
+            },
+            body: JSON.stringify({
+              phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID,
+              assistantId: process.env.VAPI_ASSISTANT_ID,
+              customer: {
+                number: appointment.patientPhone,
+                name: appointment.patientName,
+              },
+              assistantOverrides: {
+                variableValues: {
+                  patient_name: appointment.patientName,
+                  doctor_name: appointment.doctorName,
+                  appointment_date: appointment.appointmentDate,
+                  appointment_time: appointment.appointmentTime,
+                  location: appointment.practice.name,
+                  clinic_phone: appointment.practice.phone || '+18005550199',
+                },
+              },
+            }),
+          });
+
+          if (vapiResponse.ok) {
+            const vapiData = (await vapiResponse.json()) as any;
+            providerRef = `vapi_call_${vapiData.id || Date.now()}`;
+            this.logger.log(`[Worker] Vapi AI outbound call initiated successfully: ${providerRef}`);
+          } else {
+            const errText = await vapiResponse.text();
+            this.logger.warn(`[Worker] Vapi AI dispatch returned status ${vapiResponse.status}: ${errText}`);
+          }
+        } catch (vapiErr: any) {
+          this.logger.warn(`[Worker] Vapi API call failed: ${vapiErr.message}. Falling back to provider mock.`);
+        }
+      }
 
       // 5. Update reminder record to SENT
       const updatedReminder = await this.prisma.reminder.update({

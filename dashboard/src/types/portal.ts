@@ -17,28 +17,41 @@ export interface ZocdocAppointment {
   voice_scheduled_at?: string;
   voice_completed_at?: string;
   status: AppointmentStatus;
+  raw_status?: string;
   patient_response?: {
     channel: 'SMS Reply' | 'Voice DTMF' | 'Secure Link';
     response: 'confirmed' | 'cancelled';
     received_at: string;
   };
   webhook_status: 'Delivered' | 'Pending' | 'Failed';
+  billing?: {
+    billed_amount: number;
+    channel_type: string;
+    vapi_cost: number;
+    net_profit: number;
+    margin_percent: string;
+  };
 }
 
 export interface VanKaalMetrics {
-  total_api_requests: number;
-  sms_segments_used: number;
-  voice_minutes_used: number;
-  estimated_zocdoc_bill: number;
-  twilio_infra_cost: number;
-  gross_margin_usd: number;
-  gross_margin_percent: number;
-  queue_delayed_jobs: number;
-  queue_active_workers: number;
-  p95_latency_ms: number;
-  error_rate_percent: number;
-  postgres_pool_active: number;
-  postgres_pool_max: number;
+  smsCount: number;
+  voiceCalls: number;
+  totalRequests: number;
+  totalB2BInvoice: number;
+  totalCost: number;
+  totalTwilioCost: number;
+  netMargin: number;
+  marginPercent: string;
+  billingRateSms: number;
+  billingRateVoice: number;
+  costRateVoice: number;
+  costRateSms: number;
+  vapiBreakdown?: {
+    llmGpt4o: number;
+    vapiPlatform: number;
+    ttsVoice: number;
+    sttDeepgram: number;
+  };
 }
 
 export interface PartnerTenant {

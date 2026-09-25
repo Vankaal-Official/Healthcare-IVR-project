@@ -79,29 +79,40 @@ export const ZocdocModal = ({ appointment, onClose }: ZocdocModalProps) => {
 
             {/* Stepper Logic */}
             {(() => {
-              // Compute state of each step
+              const isConfirmed =
+                appointment.status === 'Confirmed' ||
+                appointment.raw_status === 'RESCHEDULED' ||
+                appointment.raw_status === 'CONFIRMED';
+
               const step1State = 'completed';
 
               let step2State: 'completed' | 'current' | 'pending' | 'failed' = 'pending';
-              if (appointment.sms_status === 'Delivered') {
+              if (
+                appointment.sms_status === 'Delivered' ||
+                appointment.voice_status === 'Delivered' ||
+                isConfirmed
+              ) {
                 step2State = 'completed';
-              } else if (appointment.sms_status === 'Failed') {
+              } else if (
+                appointment.sms_status === 'Failed' &&
+                appointment.voice_status === 'Failed'
+              ) {
                 step2State = 'failed';
               } else {
                 step2State = 'current';
               }
 
               let step3State: 'completed' | 'current' | 'pending' | 'failed' = 'pending';
-              if (appointment.patient_response) {
+              if (appointment.patient_response || isConfirmed) {
                 step3State = 'completed';
-              } else if (step2State === 'completed' || step2State === 'failed') {
+              } else if (step2State === 'completed') {
                 step3State = 'current';
               } else {
                 step3State = 'pending';
               }
 
               let step4State: 'completed' | 'current' | 'pending' | 'failed' = 'pending';
-              if (appointment.status === 'Confirmed' && step3State === 'completed') {
+              if (appointment.webhook_status === 'Delivered' || isConfirmed) {
                 step4State = 'completed';
               } else if (step3State === 'completed') {
                 step4State = 'current';
@@ -141,6 +152,20 @@ export const ZocdocModal = ({ appointment, onClose }: ZocdocModalProps) => {
                 );
               };
 
+              // Determine accurate outreach description
+              const outreachText =
+                appointment.voice_status === 'Delivered'
+                  ? `2. IVR Voice Call Connected to ${appointment.patient_phone_masked}`
+                  : appointment.sms_status === 'Delivered'
+                  ? `2. SMS Reminder Delivered to ${appointment.patient_phone_masked}`
+                  : `2. Patient Outreach Dispatched to ${appointment.patient_phone_masked}`;
+
+              const responseText = appointment.patient_response
+                ? `3. Patient Response Received via ${appointment.patient_response.channel} (${appointment.patient_response.response})`
+                : isConfirmed
+                ? '3. Patient Verified & Confirmed via Voice AI'
+                : '3. Patient Response (Awaiting Patient Reply)';
+
               return (
                 <div className="relative pl-7 space-y-6 before:absolute before:left-3 before:top-3 before:bottom-3 before:w-0.5 before:bg-slate-200">
                   {/* Step 1 */}
@@ -173,7 +198,7 @@ export const ZocdocModal = ({ appointment, onClose }: ZocdocModalProps) => {
                             : 'font-medium text-slate-400'
                         }`}
                       >
-                        2. SMS Reminder Sent to {appointment.patient_phone_masked}
+                        {outreachText}
                       </p>
                     </div>
                     {step2State === 'current' ? (
@@ -211,10 +236,7 @@ export const ZocdocModal = ({ appointment, onClose }: ZocdocModalProps) => {
                             : 'font-medium text-slate-400'
                         }`}
                       >
-                        3. Patient Response{' '}
-                        {appointment.patient_response
-                          ? `Received via ${appointment.patient_response.channel}`
-                          : '(Awaiting Patient Reply)'}
+                        {responseText}
                       </p>
                     </div>
                     {step3State === 'current' ? (
@@ -230,7 +252,7 @@ export const ZocdocModal = ({ appointment, onClose }: ZocdocModalProps) => {
                             : 'text-slate-400'
                         }`}
                       >
-                        {step3State === 'completed' ? 'Confirmed (1)' : 'Upcoming'}
+                        {step3State === 'completed' ? 'Confirmed' : 'Upcoming'}
                       </span>
                     )}
                   </div>
@@ -280,23 +302,32 @@ export const ZocdocModal = ({ appointment, onClose }: ZocdocModalProps) => {
         <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
           <button
             onClick={onClose}
-            className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800"
+            className="px-4 py-2 text-xs font-semibold text-slate-600 hover:text-slate-800 cursor-pointer"
           >
             Close
           </button>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => alert(`Resending SMS reminder to ${appointment.patient_name}...`)}
-              className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-[#182743] rounded-xl text-xs font-bold shadow-sm transition-colors"
-            >
-              Resend SMS
-            </button>
-            <button
-              onClick={() => alert(`Initiating manual IVR call for ${appointment.patient_name}...`)}
-              className="px-4 py-2 bg-[#182743] hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-sm transition-colors"
-            >
-              Trigger IVR Call Now
-            </button>
+            {appointment.status === 'Confirmed' ? (
+              <span className="inline-flex items-center gap-1.5 px-4 py-2 bg-emerald-50 border border-emerald-200 text-emerald-700 text-xs font-bold rounded-xl">
+                <span>✓</span>
+                <span>Patient Confirmed &amp; Attendance Secured</span>
+              </span>
+            ) : (
+              <>
+                <button
+                  onClick={() => alert(`Resending SMS reminder to ${appointment.patient_name}...`)}
+                  className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-[#182743] rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer"
+                >
+                  Resend SMS
+                </button>
+                <button
+                  onClick={() => alert(`Initiating manual IVR call for ${appointment.patient_name}...`)}
+                  className="px-4 py-2 bg-[#182743] hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer"
+                >
+                  Trigger IVR Call Now
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

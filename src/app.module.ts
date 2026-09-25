@@ -10,6 +10,7 @@ import { RemindersModule } from './modules/reminders/reminders.module';
 import { AppointmentsModule } from './modules/appointments/appointments.module';
 import { HealthModule } from './modules/health/health.module';
 import { WebhooksModule } from './modules/webhooks/webhooks.module';
+import { VoiceAgentModule } from './modules/voice-agent/voice-agent.module';
 import { ApiKeyGuard } from './common/guards/api-key.guard';
 import { PhiMaskingLoggerInterceptor } from './common/interceptors/phi-masking-logger.interceptor';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
@@ -42,6 +43,7 @@ import { AppController } from './app.controller';
     AppointmentsModule,
     HealthModule,
     WebhooksModule,
+    VoiceAgentModule,
   ],
   controllers: [AppController],
   providers: [

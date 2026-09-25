@@ -52,8 +52,8 @@ export class WebhooksDispatcher {
     };
 
     // 2. Add job to BullMQ queue with exponential backoff retries (3 attempts)
-    const job = await this.webhooksQueue.add(`webhook:${eventType}`, jobData, {
-      jobId: `webhook:${webhookEvent.id}`,
+    const job = await this.webhooksQueue.add(`webhook_${eventType}`, jobData, {
+      jobId: `webhook_${webhookEvent.id}`,
       attempts: 3,
       backoff: {
         type: 'exponential',

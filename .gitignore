@@ -46,3 +46,6 @@ Thumbs.db
 # Prisma generated artifacts
 prisma/*.db
 prisma/*.db-journal
+
+# Local scratch scripts
+scratch/

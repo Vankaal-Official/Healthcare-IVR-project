@@ -58,7 +58,7 @@ describe('WebhooksDispatcher (BullMQ Outbound Queue)', () => {
     });
 
     expect(queue.add).toHaveBeenCalledWith(
-      'webhook:appointment.confirmed',
+      'webhook_appointment.confirmed',
       expect.objectContaining({
         webhookEventId: 'evt-1001',
         eventType: 'appointment.confirmed',

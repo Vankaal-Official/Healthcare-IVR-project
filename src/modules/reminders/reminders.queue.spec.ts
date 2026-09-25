@@ -93,7 +93,7 @@ describe('BullMQ Delayed Reminder Queue & Processor', () => {
           channel: ReminderChannel.SMS,
         }),
         expect.objectContaining({
-          jobId: 'reminder:rem-uuid-1',
+          jobId: 'reminder_rem-uuid-1',
           delay: expect.any(Number),
           attempts: 3,
         }),
@@ -111,8 +111,8 @@ describe('BullMQ Delayed Reminder Queue & Processor', () => {
       await remindersService.cancelPendingReminders('tenant-1', 'apt-1', 'Patient cancelled');
 
       // Verify queue.remove was called for both deterministic job IDs
-      expect(mockQueue.remove).toHaveBeenCalledWith('reminder:rem-sms-1');
-      expect(mockQueue.remove).toHaveBeenCalledWith('reminder:rem-voice-1');
+      expect(mockQueue.remove).toHaveBeenCalledWith('reminder_rem-sms-1');
+      expect(mockQueue.remove).toHaveBeenCalledWith('reminder_rem-voice-1');
 
       // Verify DB updateMany marked them as CANCELLED
       expect(mockPrisma.reminder.updateMany).toHaveBeenCalledWith({

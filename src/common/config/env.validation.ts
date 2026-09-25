@@ -52,6 +52,18 @@ export class EnvironmentVariables {
 
   @IsOptional()
   ENABLE_SWAGGER: boolean = true;
+
+  @IsString()
+  @IsOptional()
+  VAPI_API_KEY?: string;
+
+  @IsString()
+  @IsOptional()
+  VAPI_PHONE_NUMBER_ID?: string;
+
+  @IsString()
+  @IsOptional()
+  VAPI_ASSISTANT_ID?: string;
 }
 
 export function validate(config: Record<string, unknown>) {
