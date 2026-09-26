@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { ZocdocPortalPage } from './pages/ZocdocPortalPage';
 import { VanKaalPortalPage } from './pages/VanKaalPortalPage';
+import { DemoPage } from './pages/DemoPage';
 
 export default function App() {
   const [currentPath, setCurrentPath] = useState<string>(() => {
@@ -15,15 +16,23 @@ export default function App() {
     return () => window.removeEventListener('popstate', handlePopState);
   }, []);
 
+  const isDemo =
+    currentPath === '/demo' ||
+    currentPath.startsWith('/demo');
+
   const isVanKaal =
     currentPath === '/vankaal' ||
     currentPath.startsWith('/vankaal/') ||
     currentPath === '/admin';
 
-  // Completely independent standalone portals with ZERO cross-portal links or switchers
+  if (isDemo) {
+    return <DemoPage />;
+  }
+
   if (isVanKaal) {
     return <VanKaalPortalPage />;
   }
 
   return <ZocdocPortalPage />;
 }
+

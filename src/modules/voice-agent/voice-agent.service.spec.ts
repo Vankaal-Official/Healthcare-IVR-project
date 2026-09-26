@@ -120,15 +120,15 @@ describe('VoiceAgentService', () => {
   });
 
   describe('getAvailableSlots', () => {
-    it('should return available upcoming slots for rescheduling', async () => {
-      const result = await service.getAvailableSlots({ patientPhone: '+14155552671' });
-      expect(result.slots.length).toBeGreaterThanOrEqual(2);
-      expect(result.slots[0]).toHaveProperty('formattedTime');
+    it('should return available upcoming slots for clinic guidance', async () => {
+      const result: any = await service.getAvailableSlots({ patientPhone: '+14155552671' });
+      expect(result).toHaveProperty('doctorName');
+      expect(result).toHaveProperty('spokenGuidance');
     });
   });
 
   describe('rescheduleAppointment', () => {
-    it('should update appointment timestamp, reschedule reminders, and alert Zocdoc', async () => {
+    it('should record reschedule request and alert clinic for follow-up', async () => {
       const newTimestamp = '2026-10-20T15:00:00.000Z';
       const result = await service.rescheduleAppointment({
         patientPhone: '+14155552671',
@@ -137,13 +137,11 @@ describe('VoiceAgentService', () => {
       });
 
       expect(result.success).toBe(true);
-      expect(remindersService.rescheduleReminders).toHaveBeenCalled();
       expect(dispatcher.dispatch).toHaveBeenCalledWith(
         mockAppointment.tenantId,
-        'appointment.rescheduled',
+        'appointment.reschedule_requested',
         expect.objectContaining({
-          status: 'RESCHEDULED',
-          barrier_reason: 'transportation',
+          appointment_id: mockAppointment.externalAppointmentId,
         }),
       );
     });

@@ -129,7 +129,7 @@ export class AppointmentsService {
       },
     });
 
-    // 5. Calculate and schedule reminders (T-60 SMS, T-30 IVR + late booking handling)
+    // 5. Calculate and schedule reminders (T-60 Voice IVR, T-30 SMS + late booking handling)
     const { reminders } = await this.remindersService.createRemindersForAppointment(
       tenantId,
       appointment.id,
@@ -371,10 +371,8 @@ export class AppointmentsService {
     if (apt.status === AppointmentStatus.CONFIRMED) mappedStatus = 'Confirmed';
     else if (apt.status === AppointmentStatus.CANCELLED) mappedStatus = 'Cancelled';
     else if (apt.status === AppointmentStatus.AT_RISK) mappedStatus = 'At Risk';
-    else if (apt.status === AppointmentStatus.RESCHEDULED) mappedStatus = 'Confirmed';
 
-    const isConfirmedOrRescheduled =
-      apt.status === AppointmentStatus.CONFIRMED || apt.status === AppointmentStatus.RESCHEDULED;
+    const isConfirmed = apt.status === AppointmentStatus.CONFIRMED;
 
     return {
       appointment_id: apt.externalAppointmentId,
@@ -413,11 +411,11 @@ export class AppointmentsService {
           : voiceReminder.status === 'CANCELLED'
           ? 'Delivered'
           : 'Pending'
-        : isConfirmedOrRescheduled || apt.confirmedAt
+        : isConfirmed || apt.confirmedAt
         ? 'Delivered'
         : 'Pending',
       voice_completed_at:
-        isConfirmedOrRescheduled || apt.confirmedAt
+        isConfirmed || apt.confirmedAt
           ? new Date(apt.confirmedAt || apt.updatedAt).toLocaleTimeString([], {
               hour: '2-digit',
               minute: '2-digit',
@@ -439,7 +437,7 @@ export class AppointmentsService {
               minute: '2-digit',
             }),
           }
-        : isConfirmedOrRescheduled || apt.confirmedAt
+        : isConfirmed || apt.confirmedAt
         ? {
             channel: 'Voice DTMF',
             response: 'confirmed',
@@ -451,11 +449,11 @@ export class AppointmentsService {
         : undefined,
       webhook_status: 'Delivered',
       billing: {
-        billed_amount: isConfirmedOrRescheduled || voiceReminder ? 1.25 : 0.05,
-        channel_type: isConfirmedOrRescheduled || voiceReminder ? 'Voice AI' : 'SMS',
-        vapi_cost: isConfirmedOrRescheduled || voiceReminder ? 0.4719 : 0.0079,
-        net_profit: isConfirmedOrRescheduled || voiceReminder ? 0.78 : 0.042,
-        margin_percent: isConfirmedOrRescheduled || voiceReminder ? '62.2%' : '84.2%',
+        billed_amount: isConfirmed || voiceReminder ? 1.25 : 0.05,
+        channel_type: isConfirmed || voiceReminder ? 'Voice AI' : 'SMS',
+        vapi_cost: isConfirmed || voiceReminder ? 0.4719 : 0.0079,
+        net_profit: isConfirmed || voiceReminder ? 0.78 : 0.042,
+        margin_percent: isConfirmed || voiceReminder ? '62.2%' : '84.2%',
       },
     };
   }

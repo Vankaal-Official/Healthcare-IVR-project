@@ -1,4 +1,4 @@
-﻿export default () => ({
+export default () => ({
   port: parseInt(process.env.PORT ?? '3000', 10),
   nodeEnv: process.env.NODE_ENV || 'development',
   apiPrefix: process.env.API_PREFIX || 'v1',
@@ -15,8 +15,8 @@
     port: parseInt(process.env.REDIS_PORT ?? '6379', 10),
   },
   reminders: {
-    defaultSmsLeadMinutes: parseInt(process.env.DEFAULT_SMS_LEAD_MINUTES ?? '60', 10),
-    defaultVoiceLeadMinutes: parseInt(process.env.DEFAULT_VOICE_LEAD_MINUTES ?? '30', 10),
+    defaultSmsLeadMinutes: parseInt(process.env.DEFAULT_SMS_LEAD_MINUTES ?? '30', 10),
+    defaultVoiceLeadMinutes: parseInt(process.env.DEFAULT_VOICE_LEAD_MINUTES ?? '60', 10),
     minimumVoiceLeadMinutes: parseInt(process.env.MINIMUM_VOICE_LEAD_MINUTES ?? '5', 10),
   },
   swagger: {

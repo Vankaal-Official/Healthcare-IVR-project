@@ -40,11 +40,11 @@ export class EnvironmentVariables {
 
   @IsNumber()
   @IsOptional()
-  DEFAULT_SMS_LEAD_MINUTES: number = 60;
+  DEFAULT_SMS_LEAD_MINUTES: number = 30;
 
   @IsNumber()
   @IsOptional()
-  DEFAULT_VOICE_LEAD_MINUTES: number = 30;
+  DEFAULT_VOICE_LEAD_MINUTES: number = 60;
 
   @IsNumber()
   @IsOptional()

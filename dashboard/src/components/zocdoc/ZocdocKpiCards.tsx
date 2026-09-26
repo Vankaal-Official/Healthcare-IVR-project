@@ -9,7 +9,7 @@ interface Props {
 export const ZocdocKpiCards: React.FC<Props> = ({ appointments = [] }: Props) => {
   const total = appointments.length;
   const confirmed = appointments.filter(
-    (a) => a.status === 'Confirmed' || a.raw_status === 'RESCHEDULED' || a.raw_status === 'CONFIRMED'
+    (a) => a.status === 'Confirmed' || a.raw_status === 'CONFIRMED'
   ).length;
   const followUpNeeded = appointments.filter(
     (a) => a.status === 'At Risk' || a.status === 'Cancelled'

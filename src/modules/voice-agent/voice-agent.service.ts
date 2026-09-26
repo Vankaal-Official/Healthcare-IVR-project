@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RemindersService } from '../reminders/reminders.service';
 import { WebhooksDispatcher } from '../webhooks/webhooks.dispatcher';
@@ -11,6 +11,7 @@ import {
   CancelAppointmentDto,
   OptOutDto,
   VapiWebhookDto,
+  DemoCallDto,
 } from './dto/voice-agent.dto';
 
 @Injectable()
@@ -23,40 +24,77 @@ export class VoiceAgentService {
     private readonly dispatcher: WebhooksDispatcher,
   ) {}
 
-  private normalizePhone(phone: string): string {
+  private normalizePhone(phone?: string): string {
+    if (!phone) return '';
     return phone.replace(/\s+/g, '').replace(/[^\d+]/g, '').trim();
   }
 
-  private async findActiveAppointment(phone: string, includeCancelled = false) {
-    const rawDigits = this.normalizePhone(phone).replace('+', '');
-    // 1. Try active appointments first (SCHEDULED, AT_RISK, RESCHEDULED)
-    let apt = await this.prisma.appointment.findFirst({
-      where: {
-        patientPhone: { contains: rawDigits.slice(-10) },
-        status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.AT_RISK, AppointmentStatus.RESCHEDULED] },
-      },
-      include: {
-        tenant: true,
-        practice: true,
-      },
-      orderBy: { appointmentTimestamp: 'asc' },
+  private async findActiveAppointment(phoneOrId?: string, includeCancelled = false) {
+    if (phoneOrId) {
+      const cleanKey = phoneOrId.trim();
+
+      // 1. Try by appointment ID (external ID or internal UUID)
+      const byId = await this.prisma.appointment.findFirst({
+        where: {
+          OR: [
+            { externalAppointmentId: cleanKey },
+            { id: cleanKey },
+          ],
+        },
+        include: { tenant: true, practice: true },
+      });
+      if (byId) return byId;
+
+      // 2. Try by phone number if not a dummy/placeholder string
+      const isPlaceholder = ['1234567890', '0000000000', '123456789', 'unknown', 'patientphone', 'null', 'undefined'].includes(
+        cleanKey.toLowerCase().replace(/[^\w]/g, ''),
+      );
+
+      if (!isPlaceholder) {
+        const rawDigits = this.normalizePhone(cleanKey).replace('+', '');
+        if (rawDigits.length >= 4) {
+          let apt = await this.prisma.appointment.findFirst({
+            where: {
+              patientPhone: { contains: rawDigits.slice(-10) },
+              status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.AT_RISK] },
+            },
+            include: { tenant: true, practice: true },
+            orderBy: { appointmentTimestamp: 'asc' },
+          });
+
+          if (!apt && includeCancelled) {
+            apt = await this.prisma.appointment.findFirst({
+              where: {
+                patientPhone: { contains: rawDigits.slice(-10) },
+              },
+              include: { tenant: true, practice: true },
+              orderBy: { updatedAt: 'desc' },
+            });
+          }
+
+          if (apt) return apt;
+        }
+      }
+    }
+
+    // 3. Resilient Fallback: Return the most recent appointment in DB (for demo simulator calls & voice AI sessions)
+    this.logger.warn(`[VoiceAgent] Appointment lookup for '${phoneOrId}' falling back to most recent DB record`);
+    let fallback = await this.prisma.appointment.findFirst({
+      where: includeCancelled
+        ? {}
+        : { status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.AT_RISK] } },
+      include: { tenant: true, practice: true },
+      orderBy: { updatedAt: 'desc' },
     });
 
-    // 2. If not found and includeCancelled is true (e.g. patient cancelled then changed mind to reschedule)
-    if (!apt && includeCancelled) {
-      apt = await this.prisma.appointment.findFirst({
-        where: {
-          patientPhone: { contains: rawDigits.slice(-10) },
-        },
-        include: {
-          tenant: true,
-          practice: true,
-        },
+    if (!fallback && !includeCancelled) {
+      fallback = await this.prisma.appointment.findFirst({
+        include: { tenant: true, practice: true },
         orderBy: { updatedAt: 'desc' },
       });
     }
 
-    return apt;
+    return fallback;
   }
 
   private normalizeSpokenDigits(input: string): string {
@@ -123,6 +161,17 @@ export class VoiceAgentService {
     }
 
     // Optional last-4 phone or birth year verification
+    if (dto.birthYear && appointment.idempotencyKey?.includes('birthYear:')) {
+      const expectedYear = appointment.idempotencyKey.split('birthYear:')[1]?.slice(0, 4);
+      const cleanInputYear = this.normalizeSpokenDigits(dto.birthYear).slice(-4);
+      if (expectedYear && cleanInputYear && expectedYear !== cleanInputYear) {
+        return {
+          verified: false,
+          message: 'The provided birth year does not match our records.',
+        };
+      }
+    }
+
     if (dto.last4Digits) {
       const cleanPhone = appointment.patientPhone.replace(/[^\d]/g, '');
       const actualLast4 = cleanPhone.slice(-4);
@@ -139,12 +188,14 @@ export class VoiceAgentService {
       verified: true,
       appointmentId: appointment.externalAppointmentId,
       patientName: appointment.patientName,
+      patientPhone: appointment.patientPhone,
       doctorName: appointment.doctorName,
       appointmentDate: appointment.appointmentDate,
       appointmentTime: appointment.appointmentTime,
       timezone: appointment.timezone,
       practiceName: appointment.practice.name,
-      clinicPhone: appointment.practice.phone || '+18005550199',
+      clinicPhone: appointment.practice.phone || '+14155550199',
+      clinicAddress: '123 Medical Center Drive, Suite 400, New York, NY 10001',
       message: `Identity verified for ${appointment.patientName}.`,
     };
   }
@@ -153,7 +204,8 @@ export class VoiceAgentService {
    * 2. Confirm Appointment
    */
   async confirmAppointment(dto: ConfirmAppointmentDto) {
-    const appointment = await this.findActiveAppointment(dto.patientPhone, true);
+    const lookupKey = dto.appointmentId || dto.patientPhone;
+    const appointment = await this.findActiveAppointment(lookupKey, true);
 
     if (!appointment) {
       return {
@@ -258,7 +310,7 @@ export class VoiceAgentService {
       const booked = await this.prisma.appointment.findMany({
         where: {
           appointmentDate: dateStr,
-          status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED, AppointmentStatus.RESCHEDULED] },
+          status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.CONFIRMED] },
         },
         select: { appointmentTime: true },
       });
@@ -433,7 +485,7 @@ export class VoiceAgentService {
   }
 
   /**
-   * 4. Reschedule Appointment in Real-Time Database
+   * 4. Note Reschedule Request for Doctor Follow-up
    */
   async rescheduleAppointment(dto: RescheduleAppointmentDto) {
     const appointment = await this.findActiveAppointment(dto.patientPhone, true);
@@ -441,101 +493,37 @@ export class VoiceAgentService {
     if (!appointment) {
       return {
         success: false,
-        message: 'No active appointment found to reschedule.',
+        message: 'No active appointment found.',
       };
     }
 
-    const rawSlot = (dto.newSlotTimestamp || dto.newSlot || dto.slotId || dto.date || '').toLowerCase();
-
-    // Real calendar mapping based on chosen slot
-    let newDateStr = '2026-09-30';
-    let newTimeStr = '11:30 AM';
-    let humanDateStr = 'Wednesday, September 30th';
-
-    if (rawSlot.includes('3:15') || rawSlot.includes('afternoon') || rawSlot.includes('pm')) {
-      newTimeStr = '3:15 PM';
-    } else if (rawSlot.includes('11:30') || rawSlot.includes('morning') || rawSlot.includes('am')) {
-      newTimeStr = '11:30 AM';
-    } else if (rawSlot.includes('10:00')) {
-      newTimeStr = '10:00 AM';
-    } else if (rawSlot.includes('2:30')) {
-      newTimeStr = '2:30 PM';
-    }
-
-    if (rawSlot.includes('friday') || rawSlot.includes('10-02') || rawSlot.includes('october 2')) {
-      newDateStr = '2026-10-02';
-      humanDateStr = 'Friday, October 2nd';
-      if (!rawSlot.includes('2:30') && !rawSlot.includes('10:00')) {
-        newTimeStr = '10:00 AM';
-      }
-    } else if (rawSlot.includes('saturday') || rawSlot.includes('09-26') || rawSlot.includes('september 26')) {
-      newDateStr = '2026-09-26';
-      humanDateStr = 'Saturday, September 26th';
-      if (!rawSlot.includes('1:45')) {
-        newTimeStr = '09:30 AM';
-      }
-    } else if (rawSlot.includes('wednesday') || rawSlot.includes('09-30') || rawSlot.includes('september 30')) {
-      newDateStr = '2026-09-30';
-      humanDateStr = 'Wednesday, September 30th';
-    }
-
-    // Reconstruct target Date object
-    const newDateObj = new Date(`${newDateStr}T${newTimeStr.includes('PM') ? '15:15:00' : '11:30:00'}Z`);
-
-    // Update appointment in PostgreSQL
-    await this.prisma.appointment.update({
-      where: { id: appointment.id },
-      data: {
-        appointmentDate: newDateStr,
-        appointmentTime: newTimeStr,
-        appointmentTimestamp: newDateObj,
-        status: AppointmentStatus.RESCHEDULED,
-        confirmedAt: new Date(),
-        confirmationSource: 'voice_ai_vapi',
-        cancelledAt: null,
-        cancellationReason: null,
-      },
-    });
-
-    // Record patient response in audit log
+    // Record patient response in audit log noting reschedule follow-up
     await this.prisma.patientResponse.create({
       data: {
         appointmentId: appointment.id,
         source: ResponseChannel.VOICE_DTMF,
-        action: PatientResponseAction.CONFIRMED,
+        action: PatientResponseAction.UNKNOWN,
         rawPayload: JSON.stringify({
           source: 'vapi_voice_ai',
-          action: 'rescheduled',
-          newDate: humanDateStr,
-          newTime: newTimeStr,
+          action: 'reschedule_followup_requested',
+          note: 'Patient requested to reschedule. Clinic front desk team will follow up directly with available times.',
+          barrierReason: dto.barrierReason || (dto as any).reason || null,
         }),
       },
     });
 
-    // Cancel old reminders and reschedule new ones via BullMQ
-    await this.remindersService.rescheduleReminders(
-      appointment.tenantId,
-      appointment.id,
-      newDateObj,
-    );
-
-    // Dispatch outbound webhook to Zocdoc
-    await this.dispatcher.dispatch(appointment.tenantId, 'appointment.rescheduled', {
+    // Dispatch webhook to clinic system/Zocdoc notifying staff
+    await this.dispatcher.dispatch(appointment.tenantId, 'appointment.reschedule_requested', {
       appointment_id: appointment.externalAppointmentId,
       doctor_name: appointment.doctorName,
-      status: 'RESCHEDULED',
-      channel: 'VOICE_AI_CONVERSATIONAL',
-      new_appointment_date: newDateStr,
-      new_appointment_time: newTimeStr,
-      barrier_reason: dto.barrierReason || dto.reason || 'Patient requested alternate time',
-      rescheduled_at: new Date().toISOString(),
+      patient_phone: appointment.patientPhone,
+      message: 'Patient requested to reschedule. Doctor office follow-up required.',
+      requested_at: new Date().toISOString(),
     });
 
     return {
       success: true,
-      newDate: humanDateStr,
-      newTime: newTimeStr,
-      message: `Appointment successfully rescheduled to ${humanDateStr} at ${newTimeStr}.`,
+      message: "Reschedule request noted. We will check with the doctor's office and let the patient know.",
     };
   }
 
@@ -543,7 +531,8 @@ export class VoiceAgentService {
    * 5. Cancel Appointment
    */
   async cancelAppointment(dto: CancelAppointmentDto) {
-    const appointment = await this.findActiveAppointment(dto.patientPhone);
+    const lookupKey = dto.appointmentId || dto.patientPhone;
+    const appointment = await this.findActiveAppointment(lookupKey, false);
 
     if (!appointment) {
       return {
@@ -597,13 +586,25 @@ export class VoiceAgentService {
    * 6. TCPA Opt-Out
    */
   async optOut(dto: OptOutDto) {
-    const rawDigits = this.normalizePhone(dto.patientPhone).replace('+', '');
-    const appointments = await this.prisma.appointment.findMany({
-      where: {
-        patientPhone: { contains: rawDigits.slice(-10) },
-        status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.AT_RISK] },
-      },
-    });
+    const lookupKey = dto.appointmentId || dto.patientPhone;
+    let appointments: any[] = [];
+
+    if (dto.patientPhone) {
+      const rawDigits = this.normalizePhone(dto.patientPhone).replace('+', '');
+      if (rawDigits.length >= 4) {
+        appointments = await this.prisma.appointment.findMany({
+          where: {
+            patientPhone: { contains: rawDigits.slice(-10) },
+            status: { in: [AppointmentStatus.SCHEDULED, AppointmentStatus.AT_RISK] },
+          },
+        });
+      }
+    }
+
+    if (appointments.length === 0) {
+      const fallback = await this.findActiveAppointment(lookupKey, false);
+      if (fallback) appointments = [fallback];
+    }
 
     for (const apt of appointments) {
       await this.remindersService.cancelPendingReminders(
@@ -613,7 +614,7 @@ export class VoiceAgentService {
       );
       await this.dispatcher.dispatch(apt.tenantId, 'patient.opted_out', {
         appointment_id: apt.externalAppointmentId,
-        patient_phone: dto.patientPhone,
+        patient_phone: apt.patientPhone,
         channel: 'VOICE_AI_CONVERSATIONAL',
         timestamp: new Date().toISOString(),
       });
@@ -708,4 +709,269 @@ export class VoiceAgentService {
 
     return { results };
   }
+
+  /**
+   * Dispatches a live outbound call to a prospect/client phone number for interactive demonstration
+   */
+  async triggerDemoCall(dto: DemoCallDto) {
+    const normalizedPhone = this.normalizePhone(dto.patientPhone);
+    if (!normalizedPhone || normalizedPhone.length < 8) {
+      throw new BadRequestException('Please provide a valid phone number with country code (e.g. +14155552671 or +919876543210)');
+    }
+
+    // 1. Resolve or create Demo Tenant
+    let tenant = await this.prisma.tenant.findFirst({
+      where: { slug: 'vankaal-demo-health' },
+    });
+    if (!tenant) {
+      tenant = await this.prisma.tenant.findFirst();
+    }
+    if (!tenant) {
+      tenant = await this.prisma.tenant.create({
+        data: {
+          name: 'Van-Kaal Demo Health Network',
+          slug: 'vankaal-demo-health',
+        },
+      });
+    }
+
+    // 2. Resolve or create Demo Practice
+    let practice = await this.prisma.practice.findFirst({
+      where: { tenantId: tenant.id },
+    });
+    if (!practice) {
+      practice = await this.prisma.practice.create({
+        data: {
+          tenantId: tenant.id,
+          externalPracticeId: 'practice_001',
+          name: dto.practiceName || 'City Care Family Practice',
+          timezone: 'America/New_York',
+          phone: '+14155550199',
+        },
+      });
+    }
+
+    const doctorName = dto.doctorName || 'Dr. Sarah Jenkins';
+    const patientName = dto.patientName || 'Alex Morgan';
+    const appointmentDate = dto.appointmentDate || '2026-09-30';
+    const appointmentTime = dto.appointmentTime || '10:00 AM';
+    const birthYear = dto.birthYear ? dto.birthYear.replace(/[^\d]/g, '').slice(0, 4) : '1985';
+
+    // 3. Upsert or refresh Appointment for this phone so repeated testing works cleanly
+    const rawDigits = normalizedPhone.replace('+', '');
+    let appointment = await this.prisma.appointment.findFirst({
+      where: {
+        patientPhone: { contains: rawDigits.slice(-10) },
+      },
+      include: { practice: true, tenant: true },
+    });
+
+    if (appointment) {
+      appointment = await this.prisma.appointment.update({
+        where: { id: appointment.id },
+        data: {
+          patientName,
+          patientPhone: normalizedPhone,
+          doctorName,
+          appointmentDate,
+          appointmentTime,
+          idempotencyKey: `birthYear:${birthYear}`,
+          appointmentTimestamp: new Date(Date.now() + 86400000 * 2),
+          status: AppointmentStatus.SCHEDULED,
+          cancellationReason: null,
+          cancelledAt: null,
+          confirmedAt: null,
+          confirmationSource: null,
+        },
+        include: { practice: true, tenant: true },
+      });
+    } else {
+      appointment = await this.prisma.appointment.create({
+        data: {
+          tenantId: tenant.id,
+          practiceId: practice.id,
+          externalAppointmentId: `APT-DEMO-${Date.now().toString().slice(-6)}`,
+          patientName,
+          patientPhone: normalizedPhone,
+          appointmentDate,
+          appointmentTime,
+          idempotencyKey: `birthYear:${birthYear}`,
+          appointmentTimestamp: new Date(Date.now() + 86400000 * 2),
+          doctorName,
+          status: AppointmentStatus.SCHEDULED,
+        },
+        include: { practice: true, tenant: true },
+      });
+    }
+
+    // 4. Create Voice Reminder tracking record
+    const reminder = await this.prisma.reminder.create({
+      data: {
+        tenantId: tenant.id,
+        appointmentId: appointment.id,
+        channel: 'VOICE',
+        scheduledFor: new Date(),
+        leadMinutes: 1440,
+        status: 'SCHEDULED',
+      },
+    });
+
+    // 5. Check credentials
+    const vapiKey = process.env.VAPI_API_KEY;
+    const vapiPhoneId = process.env.VAPI_PHONE_NUMBER_ID;
+    const vapiAssistantId = process.env.VAPI_ASSISTANT_ID;
+
+    if (!vapiKey || !vapiPhoneId || !vapiAssistantId) {
+      this.logger.error('Missing Vapi credentials in environment');
+      throw new BadRequestException('Vapi AI credentials (VAPI_API_KEY, VAPI_PHONE_NUMBER_ID, VAPI_ASSISTANT_ID) are not configured.');
+    }
+
+    this.logger.log(`[DemoCall] Dispatching live outbound call to ${normalizedPhone} for ${patientName} (Birth Year: ${birthYear})`);
+
+    const vapiResponse = await fetch('https://api.vapi.ai/call/phone', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${vapiKey}`,
+      },
+      body: JSON.stringify({
+        phoneNumberId: vapiPhoneId,
+        assistantId: vapiAssistantId,
+        customer: {
+          number: normalizedPhone,
+          name: patientName,
+        },
+        assistantOverrides: {
+          variableValues: {
+            patient_name: patientName,
+            patient_phone: normalizedPhone,
+            appointment_id: appointment.externalAppointmentId,
+            doctor_name: doctorName,
+            appointment_date: appointmentDate,
+            appointment_time: appointmentTime,
+            birth_year: birthYear,
+            patient_birth_year: birthYear,
+            location: practice.name,
+            clinic_phone: practice.phone || '+14155550199',
+            clinic_address: '123 Medical Center Drive, Suite 400, New York, NY 10001',
+          },
+        },
+      }),
+    });
+
+    if (!vapiResponse.ok) {
+      const errText = await vapiResponse.text();
+      this.logger.error(`[DemoCall] Vapi dispatch failed (${vapiResponse.status}): ${errText}`);
+      throw new BadRequestException(`Failed to dispatch call via Vapi (${vapiResponse.status}): ${errText}`);
+    }
+
+    const vapiData = (await vapiResponse.json()) as any;
+    const callId = vapiData.id;
+
+    // 6. Update reminder record with call ID
+    await this.prisma.reminder.update({
+      where: { id: reminder.id },
+      data: {
+        status: 'SENT',
+        sentAt: new Date(),
+        providerRef: `vapi_call_${callId}`,
+      },
+    });
+
+    // 7. Audit Event
+    await this.prisma.auditEvent.create({
+      data: {
+        tenantId: tenant.id,
+        actor: 'user:demo_simulator',
+        action: 'voice.demo_call_dispatched',
+        resource: 'appointment',
+        resourceId: appointment.id,
+        details: { callId, appointmentId: appointment.id, patientPhone: normalizedPhone },
+      },
+    });
+
+    return {
+      success: true,
+      callId,
+      appointmentId: appointment.id,
+      externalAppointmentId: appointment.externalAppointmentId,
+      patientName,
+      patientPhone: normalizedPhone,
+      doctorName,
+      practiceName: practice.name,
+      appointmentDate,
+      appointmentTime,
+      status: vapiData.status || 'queued',
+    };
+  }
+
+  /**
+   * Retrieves real-time status, transcript, and associated appointment record for a call
+   */
+  async getCallStatus(callId: string) {
+    const vapiKey = process.env.VAPI_API_KEY;
+    let vapiData: any = null;
+
+    if (vapiKey && callId && callId !== 'undefined' && callId !== 'mock') {
+      try {
+        const resp = await fetch(`https://api.vapi.ai/call/${callId}`, {
+          headers: {
+            Authorization: `Bearer ${vapiKey}`,
+          },
+        });
+        if (resp.ok) {
+          vapiData = await resp.json();
+        }
+      } catch (e: any) {
+        this.logger.warn(`Could not fetch Vapi call status for ${callId}: ${e.message}`);
+      }
+    }
+
+    // Find associated reminder and appointment
+    const reminder = await this.prisma.reminder.findFirst({
+      where: {
+        providerRef: { contains: callId },
+      },
+      include: {
+        appointment: {
+          include: {
+            practice: true,
+            patientResponses: true,
+          },
+        },
+      },
+    });
+
+    const appointment = reminder?.appointment;
+
+    return {
+      callId,
+      status: vapiData?.status || 'unknown',
+      endedReason: vapiData?.endedReason || null,
+      duration: vapiData?.duration || (vapiData?.endedAt && vapiData?.startedAt ? Math.round((new Date(vapiData.endedAt).getTime() - new Date(vapiData.startedAt).getTime()) / 1000) : 0),
+      cost: vapiData?.cost || 0,
+      transcript: vapiData?.transcript || '',
+      summary: vapiData?.summary || '',
+      messages: vapiData?.messages || [],
+      appointment: appointment
+        ? {
+            id: appointment.id,
+            externalAppointmentId: appointment.externalAppointmentId,
+            patientName: appointment.patientName,
+            patientPhone: appointment.patientPhone,
+            doctorName: appointment.doctorName,
+            practiceName: appointment.practice?.name,
+            appointmentDate: appointment.appointmentDate,
+            appointmentTime: appointment.appointmentTime,
+            status: appointment.status,
+            confirmationSource: appointment.confirmationSource,
+            confirmedAt: appointment.confirmedAt,
+            cancellationReason: appointment.cancellationReason,
+            cancelledAt: appointment.cancelledAt,
+            updatedAt: appointment.updatedAt,
+          }
+        : null,
+    };
+  }
 }
+

@@ -23,7 +23,6 @@ export const ZocdocTable: React.FC<ZocdocTableProps> = ({
 
     const isConfirmed =
       app.status === 'Confirmed' ||
-      app.raw_status === 'RESCHEDULED' ||
       app.raw_status === 'CONFIRMED';
 
     if (statusFilter === 'Confirmed') return matchesSearch && isConfirmed;
@@ -165,9 +164,7 @@ export const ZocdocTable: React.FC<ZocdocTableProps> = ({
                   <td className="py-4 px-6 whitespace-nowrap">
                     <span
                       className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold border ${
-                        app.raw_status === 'RESCHEDULED'
-                          ? 'bg-purple-50 text-purple-700 border-purple-200'
-                          : app.status === 'Confirmed'
+                        app.status === 'Confirmed'
                           ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
                           : app.status === 'At Risk'
                           ? 'bg-amber-50 text-amber-700 border-amber-200'
@@ -176,9 +173,7 @@ export const ZocdocTable: React.FC<ZocdocTableProps> = ({
                           : 'bg-slate-100 text-slate-700 border-slate-200'
                       }`}
                     >
-                      {app.raw_status === 'RESCHEDULED'
-                        ? '✓ Rescheduled & Confirmed'
-                        : app.status === 'Confirmed'
+                      {app.status === 'Confirmed'
                         ? '✓ Confirmed via AI'
                         : app.status === 'At Risk'
                         ? '⚠️ At Risk'
@@ -220,7 +215,6 @@ export const ZocdocTable: React.FC<ZocdocTableProps> = ({
               appointments.filter(
                 (a) =>
                   a.status === 'Confirmed' ||
-                  a.raw_status === 'RESCHEDULED' ||
                   a.raw_status === 'CONFIRMED'
               ).length
             }
@@ -232,7 +226,6 @@ export const ZocdocTable: React.FC<ZocdocTableProps> = ({
               appointments.filter(
                 (a) =>
                   a.status !== 'Confirmed' &&
-                  a.raw_status !== 'RESCHEDULED' &&
                   a.raw_status !== 'CONFIRMED'
               ).length
             }

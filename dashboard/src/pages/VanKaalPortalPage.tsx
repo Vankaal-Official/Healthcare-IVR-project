@@ -66,11 +66,11 @@ export const VanKaalPortalPage = () => {
   }, [fetchData]);
 
   return (
-    <div className="min-h-screen bg-[#0E0D0B] text-slate-100 font-sans antialiased relative overflow-x-hidden selection:bg-[#EEB057] selection:text-[#0E0D0B]">
-      {/* Subtle Ambient Gold Radial Glow */}
+    <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-sans antialiased relative overflow-x-hidden selection:bg-[#FACC15] selection:text-slate-900">
+      {/* Subtle Warm Butter-Gold Ambient Glow */}
       <div
         aria-hidden="true"
-        className="absolute top-0 right-1/4 w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle_at_50%_50%,rgba(238,176,87,0.08)_0%,rgba(14,13,11,0)_70%)] pointer-events-none -z-10 blur-3xl"
+        className="absolute top-0 right-1/4 w-[500px] h-[500px] rounded-full bg-[radial-gradient(circle_at_50%_50%,rgba(250,204,21,0.06)_0%,rgba(248,250,252,0)_70%)] pointer-events-none -z-10 blur-3xl"
       />
 
       {/* Header */}
@@ -78,30 +78,30 @@ export const VanKaalPortalPage = () => {
 
       {/* Main Content Area */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 relative z-10">
-        {/* Clean, Minimal Hero Headline */}
+        {/* Operations Headline */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-7">
           <div>
-            <div className="flex items-center gap-2.5 mb-1.5">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-              <span className="text-[11px] font-mono tracking-widest text-[#EEB057] uppercase font-semibold">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+              <span className="text-[11px] font-mono tracking-widest text-amber-700 uppercase font-bold">
                 Live Operations Telemetry
               </span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
               Patient Outreach &amp; Call Operations
             </h1>
-            <p className="text-xs text-slate-400 font-mono mt-1">
+            <p className="text-xs text-slate-500 font-normal mt-1">
               Real-time monitoring of automated IVR calls, patient voice interactions, and verified confirmations.
             </p>
           </div>
 
-          <div className="flex items-center gap-2 self-start sm:self-auto bg-[#171512] px-3.5 py-1.5 rounded-xl border border-[#EEB057]/20 text-xs font-mono text-slate-400">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+          <div className="flex items-center gap-2 self-start sm:self-auto bg-white px-3.5 py-1.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-600 shadow-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
             <span>Synced: {lastUpdated}</span>
           </div>
         </div>
 
-        {/* 1. Clean Key Performance Metrics Cards */}
+        {/* 1. Key Performance Metrics Cards */}
         <VanKaalStatsCards metrics={telemetry?.metrics} appointments={appointments} />
 
         {/* 2. Real Enterprise Vapi AI & Twilio Metered Billing Summary */}
@@ -111,18 +111,18 @@ export const VanKaalPortalPage = () => {
         <VanKaalActivityLog appointments={appointments} />
       </main>
 
-      {/* Sovereign Minimal Footer */}
-      <footer className="border-t border-[#EEB057]/15 bg-[#0A0908] py-6 mt-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-slate-400">
+      {/* Clean Light Footer */}
+      <footer className="border-t border-slate-200 bg-white py-6 mt-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-mono text-slate-500">
           <div className="flex items-center gap-2">
-            <span className="font-bold text-white tracking-wider">VAN-KAAL</span>
+            <span className="font-bold text-slate-900 tracking-wider">VAN-KAAL</span>
             <span>•</span>
-            <span className="text-[#EEB057]">Healthcare AI Telemetry</span>
+            <span className="text-amber-700 font-semibold">Healthcare AI Telemetry</span>
           </div>
           <div className="flex items-center gap-4">
             <span>HIPAA Compliant</span>
             <span>•</span>
-            <span className="text-emerald-400">All Systems Operational</span>
+            <span className="text-emerald-700 font-semibold">All Systems Operational</span>
           </div>
         </div>
       </footer>

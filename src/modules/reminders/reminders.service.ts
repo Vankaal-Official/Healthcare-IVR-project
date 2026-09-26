@@ -32,13 +32,13 @@ export class RemindersService {
     private readonly configService: ConfigService,
     @InjectQueue('reminders') private readonly reminderQueue: Queue,
   ) {
-    this.defaultSmsLead = this.configService.get<number>('reminders.defaultSmsLeadMinutes', 60);
-    this.defaultVoiceLead = this.configService.get<number>('reminders.defaultVoiceLeadMinutes', 30);
+    this.defaultSmsLead = this.configService.get<number>('reminders.defaultSmsLeadMinutes', 30);
+    this.defaultVoiceLead = this.configService.get<number>('reminders.defaultVoiceLeadMinutes', 60);
     this.minimumVoiceLead = this.configService.get<number>('reminders.minimumVoiceLeadMinutes', 5);
   }
 
   /**
-   * Calculates reminder execution timings based on lead time and late booking rules (Section 6)
+   * Calculates reminder execution timings based on lead time and late booking rules (Voice: 1 hr / 60m, SMS: 30m)
    */
   calculateSchedule(appointmentUtc: Date, now: Date = new Date()): ReminderPlan {
     const diffMs = appointmentUtc.getTime() - now.getTime();
@@ -53,34 +53,13 @@ export class RemindersService {
     }
 
     const plan: ReminderPlan = {
-      isLateBooking: remainingMinutes < this.defaultSmsLead,
+      isLateBooking: remainingMinutes < this.defaultVoiceLead,
       isPastAppointment: false,
     };
 
-    // 1. Calculate SMS reminder
-    if (remainingMinutes > this.defaultSmsLead) {
-      // Standard T-60
-      const scheduledFor = new Date(appointmentUtc.getTime() - this.defaultSmsLead * 60 * 1000);
-      plan.sms = {
-        channel: ReminderChannel.SMS,
-        scheduledFor,
-        leadMinutes: this.defaultSmsLead,
-        status: ReminderStatus.SCHEDULED,
-      };
-    } else {
-      // Late booking: Send SMS immediately
-      plan.sms = {
-        channel: ReminderChannel.SMS,
-        scheduledFor: now,
-        leadMinutes: remainingMinutes,
-        status: ReminderStatus.SCHEDULED,
-        reason: 'Late booking - immediate SMS',
-      };
-    }
-
-    // 2. Calculate Voice / IVR reminder
+    // 1. Calculate Voice / IVR reminder (T-60)
     if (remainingMinutes > this.defaultVoiceLead) {
-      // Standard T-30
+      // Standard T-60
       const scheduledFor = new Date(appointmentUtc.getTime() - this.defaultVoiceLead * 60 * 1000);
       plan.voice = {
         channel: ReminderChannel.VOICE,
@@ -89,7 +68,7 @@ export class RemindersService {
         status: ReminderStatus.SCHEDULED,
       };
     } else if (remainingMinutes >= this.minimumVoiceLead) {
-      // 5 to 30 mins: Send Voice immediately
+      // 5 to 60 mins: Send Voice immediately
       plan.voice = {
         channel: ReminderChannel.VOICE,
         scheduledFor: now,
@@ -108,6 +87,27 @@ export class RemindersService {
       };
     }
 
+    // 2. Calculate SMS reminder (T-30)
+    if (remainingMinutes > this.defaultSmsLead) {
+      // Standard T-30
+      const scheduledFor = new Date(appointmentUtc.getTime() - this.defaultSmsLead * 60 * 1000);
+      plan.sms = {
+        channel: ReminderChannel.SMS,
+        scheduledFor,
+        leadMinutes: this.defaultSmsLead,
+        status: ReminderStatus.SCHEDULED,
+      };
+    } else {
+      // Late booking (< 30 min): Send SMS immediately
+      plan.sms = {
+        channel: ReminderChannel.SMS,
+        scheduledFor: now,
+        leadMinutes: remainingMinutes,
+        status: ReminderStatus.SCHEDULED,
+        reason: 'Late booking - immediate SMS',
+      };
+    }
+
     return plan;
   }
 
@@ -123,27 +123,7 @@ export class RemindersService {
     const plan = this.calculateSchedule(appointmentUtc, now);
     const created = [];
 
-    // 1. Persist and enqueue SMS reminder
-    if (plan.sms && plan.sms.status !== ReminderStatus.SKIPPED) {
-      const smsReminder = await this.prisma.reminder.create({
-        data: {
-          tenantId,
-          appointmentId,
-          channel: ReminderChannel.SMS,
-          scheduledFor: plan.sms.scheduledFor,
-          leadMinutes: plan.sms.leadMinutes,
-          status: plan.sms.status,
-          failureReason: plan.sms.reason,
-        },
-      });
-      created.push(smsReminder);
-
-      if (smsReminder.status === ReminderStatus.SCHEDULED) {
-        await this.enqueueDelayedJob(smsReminder.id, appointmentId, tenantId, ReminderChannel.SMS, smsReminder.scheduledFor, now);
-      }
-    }
-
-    // 2. Persist and enqueue Voice reminder
+    // 1. Persist and enqueue Voice reminder (T-60)
     if (plan.voice) {
       const voiceReminder = await this.prisma.reminder.create({
         data: {
@@ -160,6 +140,26 @@ export class RemindersService {
 
       if (voiceReminder.status === ReminderStatus.SCHEDULED) {
         await this.enqueueDelayedJob(voiceReminder.id, appointmentId, tenantId, ReminderChannel.VOICE, voiceReminder.scheduledFor, now);
+      }
+    }
+
+    // 2. Persist and enqueue SMS reminder (T-30)
+    if (plan.sms && plan.sms.status !== ReminderStatus.SKIPPED) {
+      const smsReminder = await this.prisma.reminder.create({
+        data: {
+          tenantId,
+          appointmentId,
+          channel: ReminderChannel.SMS,
+          scheduledFor: plan.sms.scheduledFor,
+          leadMinutes: plan.sms.leadMinutes,
+          status: plan.sms.status,
+          failureReason: plan.sms.reason,
+        },
+      });
+      created.push(smsReminder);
+
+      if (smsReminder.status === ReminderStatus.SCHEDULED) {
+        await this.enqueueDelayedJob(smsReminder.id, appointmentId, tenantId, ReminderChannel.SMS, smsReminder.scheduledFor, now);
       }
     }
 

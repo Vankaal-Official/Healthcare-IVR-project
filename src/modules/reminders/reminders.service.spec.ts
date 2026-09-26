@@ -36,7 +36,7 @@ describe('RemindersService (Schedule & Late Booking Engine)', () => {
     service = module.get<RemindersService>(RemindersService);
   });
 
-  it('should schedule SMS at T-60 and IVR at T-30 when appointment is > 60 min away', () => {
+  it('should schedule IVR at T-60 and SMS at T-30 when appointment is > 60 min away', () => {
     const now = new Date('2026-09-28T10:00:00Z');
     const appointmentUtc = new Date('2026-09-28T15:30:00Z'); // 330 minutes away
 
@@ -45,41 +45,43 @@ describe('RemindersService (Schedule & Late Booking Engine)', () => {
     expect(plan.isLateBooking).toBe(false);
     expect(plan.isPastAppointment).toBe(false);
 
-    // SMS scheduled at T-60 -> 14:30
-    expect(plan.sms?.channel).toBe(ReminderChannel.SMS);
-    expect(plan.sms?.status).toBe(ReminderStatus.SCHEDULED);
-    expect(plan.sms?.scheduledFor.toISOString()).toBe('2026-09-28T14:30:00.000Z');
-
-    // Voice scheduled at T-30 -> 15:00
+    // Voice scheduled at T-60 -> 14:30
     expect(plan.voice?.channel).toBe(ReminderChannel.VOICE);
     expect(plan.voice?.status).toBe(ReminderStatus.SCHEDULED);
-    expect(plan.voice?.scheduledFor.toISOString()).toBe('2026-09-28T15:00:00.000Z');
+    expect(plan.voice?.scheduledFor.toISOString()).toBe('2026-09-28T14:30:00.000Z');
+
+    // SMS scheduled at T-30 -> 15:00
+    expect(plan.sms?.channel).toBe(ReminderChannel.SMS);
+    expect(plan.sms?.status).toBe(ReminderStatus.SCHEDULED);
+    expect(plan.sms?.scheduledFor.toISOString()).toBe('2026-09-28T15:00:00.000Z');
   });
 
-  it('should trigger immediate SMS and schedule IVR at T-30 when booked 30-60 min before', () => {
+  it('should trigger immediate IVR and schedule SMS at T-30 when booked 30-60 min before', () => {
     const now = new Date('2026-09-28T14:45:00Z');
     const appointmentUtc = new Date('2026-09-28T15:30:00Z'); // 45 minutes away
 
     const plan = service.calculateSchedule(appointmentUtc, now);
 
     expect(plan.isLateBooking).toBe(true);
-    // SMS scheduled immediately (now)
-    expect(plan.sms?.scheduledFor.toISOString()).toBe(now.toISOString());
-    // IVR scheduled for T-30 -> 15:00
-    expect(plan.voice?.scheduledFor.toISOString()).toBe('2026-09-28T15:00:00.000Z');
+    // IVR scheduled immediately (now)
+    expect(plan.voice?.scheduledFor.toISOString()).toBe(now.toISOString());
     expect(plan.voice?.status).toBe(ReminderStatus.SCHEDULED);
+    // SMS scheduled for T-30 -> 15:00
+    expect(plan.sms?.scheduledFor.toISOString()).toBe('2026-09-28T15:00:00.000Z');
+    expect(plan.sms?.status).toBe(ReminderStatus.SCHEDULED);
   });
 
-  it('should trigger immediate SMS and immediate IVR when booked 5-30 min before', () => {
+  it('should trigger immediate IVR and immediate SMS when booked 5-30 min before', () => {
     const now = new Date('2026-09-28T15:15:00Z');
     const appointmentUtc = new Date('2026-09-28T15:30:00Z'); // 15 minutes away
 
     const plan = service.calculateSchedule(appointmentUtc, now);
 
     expect(plan.isLateBooking).toBe(true);
-    expect(plan.sms?.scheduledFor.toISOString()).toBe(now.toISOString());
     expect(plan.voice?.scheduledFor.toISOString()).toBe(now.toISOString());
     expect(plan.voice?.status).toBe(ReminderStatus.SCHEDULED);
+    expect(plan.sms?.scheduledFor.toISOString()).toBe(now.toISOString());
+    expect(plan.sms?.status).toBe(ReminderStatus.SCHEDULED);
   });
 
   it('should skip IVR when booked with less than minimum voice lead time (< 5 min)', () => {
@@ -89,8 +91,8 @@ describe('RemindersService (Schedule & Late Booking Engine)', () => {
     const plan = service.calculateSchedule(appointmentUtc, now);
 
     expect(plan.isLateBooking).toBe(true);
-    expect(plan.sms?.scheduledFor.toISOString()).toBe(now.toISOString());
     expect(plan.voice?.status).toBe(ReminderStatus.SKIPPED);
+    expect(plan.sms?.scheduledFor.toISOString()).toBe(now.toISOString());
   });
 
   it('should not schedule reminders if appointment is already in the past', () => {

@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post } from '@nestjs/common';
 import { ApiTags, ApiOperation } from '@nestjs/swagger';
 import { Public } from '../../common/decorators/public.decorator';
 import { VoiceAgentService } from './voice-agent.service';
@@ -10,6 +10,7 @@ import {
   CancelAppointmentDto,
   OptOutDto,
   VapiWebhookDto,
+  DemoCallDto,
 } from './dto/voice-agent.dto';
 
 @ApiTags('Voice Agent (Vapi.ai)')
@@ -71,5 +72,21 @@ export class VoiceAgentController {
   @ApiOperation({ summary: 'Unified Vapi.ai Server URL tool-calls webhook endpoint' })
   async handleVapiWebhook(@Body() dto: VapiWebhookDto) {
     return this.voiceAgentService.handleVapiWebhook(dto);
+  }
+
+  @Public()
+  @Post('demo-call')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Dispatch an interactive live outbound voice call for demonstration' })
+  async triggerDemoCall(@Body() dto: DemoCallDto) {
+    return this.voiceAgentService.triggerDemoCall(dto);
+  }
+
+  @Public()
+  @Get('call-status/:callId')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Get live status and transcript of an active or recent demo call' })
+  async getCallStatus(@Param('callId') callId: string) {
+    return this.voiceAgentService.getCallStatus(callId);
   }
 }

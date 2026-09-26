@@ -22,7 +22,6 @@ enum AppointmentStatus {
   SCHEDULED
   CONFIRMED
   CANCELLED
-  RESCHEDULED
   AT_RISK
   COMPLETED
 }

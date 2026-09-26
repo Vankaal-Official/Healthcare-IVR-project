@@ -2,8 +2,12 @@ import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class VerifyIdentityDto {
   @IsString()
-  @IsNotEmpty()
-  patientPhone: string;
+  @IsOptional()
+  patientPhone?: string;
+
+  @IsString()
+  @IsOptional()
+  appointmentId?: string;
 
   @IsString()
   @IsOptional()
@@ -20,8 +24,12 @@ export class VerifyIdentityDto {
 
 export class ConfirmAppointmentDto {
   @IsString()
-  @IsNotEmpty()
-  patientPhone: string;
+  @IsOptional()
+  patientPhone?: string;
+
+  @IsString()
+  @IsOptional()
+  appointmentId?: string;
 
   @IsString()
   @IsOptional()
@@ -95,8 +103,12 @@ export class RescheduleAppointmentDto {
 
 export class CancelAppointmentDto {
   @IsString()
-  @IsNotEmpty()
-  patientPhone: string;
+  @IsOptional()
+  patientPhone?: string;
+
+  @IsString()
+  @IsOptional()
+  appointmentId?: string;
 
   @IsString()
   @IsOptional()
@@ -109,8 +121,12 @@ export class CancelAppointmentDto {
 
 export class OptOutDto {
   @IsString()
-  @IsNotEmpty()
-  patientPhone: string;
+  @IsOptional()
+  patientPhone?: string;
+
+  @IsString()
+  @IsOptional()
+  appointmentId?: string;
 }
 
 export class VapiWebhookDto {
@@ -134,3 +150,39 @@ export class VapiWebhookDto {
     };
   };
 }
+
+export class DemoCallDto {
+  @IsString()
+  @IsNotEmpty()
+  patientName: string;
+
+  @IsString()
+  @IsNotEmpty()
+  patientPhone: string;
+
+  @IsString()
+  @IsOptional()
+  doctorName?: string;
+
+  @IsString()
+  @IsOptional()
+  practiceName?: string;
+
+  @IsString()
+  @IsOptional()
+  scenario?: string;
+
+  @IsString()
+  @IsOptional()
+  appointmentDate?: string;
+
+  @IsString()
+  @IsOptional()
+  appointmentTime?: string;
+
+  @IsString()
+  @IsOptional()
+  birthYear?: string;
+}
+
+

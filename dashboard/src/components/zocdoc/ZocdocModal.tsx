@@ -81,7 +81,6 @@ export const ZocdocModal = ({ appointment, onClose }: ZocdocModalProps) => {
             {(() => {
               const isConfirmed =
                 appointment.status === 'Confirmed' ||
-                appointment.raw_status === 'RESCHEDULED' ||
                 appointment.raw_status === 'CONFIRMED';
 
               const step1State = 'completed';
@@ -313,20 +312,10 @@ export const ZocdocModal = ({ appointment, onClose }: ZocdocModalProps) => {
                 <span>Patient Confirmed &amp; Attendance Secured</span>
               </span>
             ) : (
-              <>
-                <button
-                  onClick={() => alert(`Resending SMS reminder to ${appointment.patient_name}...`)}
-                  className="px-4 py-2 bg-white hover:bg-slate-100 border border-slate-300 text-[#182743] rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer"
-                >
-                  Resend SMS
-                </button>
-                <button
-                  onClick={() => alert(`Initiating manual IVR call for ${appointment.patient_name}...`)}
-                  className="px-4 py-2 bg-[#182743] hover:bg-slate-800 text-white rounded-xl text-xs font-bold shadow-sm transition-colors cursor-pointer"
-                >
-                  Trigger IVR Call Now
-                </button>
-              </>
+              <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 border border-blue-200 text-[#182743] text-xs font-medium rounded-xl">
+                <span>⏱</span>
+                <span>Automated Outreach Active (Call: 1h before • SMS: 30m before)</span>
+              </span>
             )}
           </div>
         </div>

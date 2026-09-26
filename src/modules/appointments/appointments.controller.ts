@@ -41,7 +41,7 @@ export class AppointmentsController {
   @ApiOperation({
     summary: 'Register an appointment and schedule reminders',
     description:
-      'Called by the customer backend when a booking is created. Accepts appointment details, calculates reminder schedules (SMS T-60, IVR T-30, and late booking rules), and persists reminder records.',
+      'Called by the customer backend when a booking is created. Accepts appointment details, calculates reminder schedules (Voice IVR T-60, SMS T-30, and late booking rules), and persists reminder records.',
   })
   @ApiHeader({
     name: 'Idempotency-Key',
