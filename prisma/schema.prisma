@@ -1,0 +1,234 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum PracticeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  CONFIRMED
+  CANCELLED
+  AT_RISK
+  COMPLETED
+}
+
+enum ReminderChannel {
+  SMS
+  VOICE
+}
+
+enum ReminderStatus {
+  SCHEDULED
+  SENDING
+  SENT
+  FAILED
+  CANCELLED
+  SKIPPED
+}
+
+enum ResponseChannel {
+  SMS_REPLY
+  VOICE_DTMF
+  SECURE_LINK
+}
+
+enum PatientResponseAction {
+  CONFIRMED
+  CANCELLED
+  UNKNOWN
+}
+
+model Tenant {
+  id          String       @id @default(uuid())
+  name        String
+  slug        String       @unique
+  status      TenantStatus @default(ACTIVE)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  practices    Practice[]
+  apiKeys      ApiKey[]
+  appointments Appointment[]
+  reminders    Reminder[]
+  auditEvents  AuditEvent[]
+  usageEvents  UsageEvent[]
+  webhookEvents WebhookEvent[]
+
+  @@map("tenants")
+}
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  tenantId    String    @map("tenant_id")
+  name        String    // e.g. "Primary Backend Key", "Staging Key"
+  keyPrefix   String    @map("key_prefix") // First 8 chars for identification (e.g. vk_live_...)
+  keyHash     String    @unique @map("key_hash") // SHA-256 hash of the complete API key
+  isActive    Boolean   @default(true) @map("is_active")
+  expiresAt   DateTime? @map("expires_at")
+  lastUsedAt  DateTime? @map("last_used_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId])
+  @@index([keyHash])
+  @@map("api_keys")
+}
+
+model Practice {
+  id                 String         @id @default(uuid())
+  tenantId           String         @map("tenant_id")
+  externalPracticeId String         @map("external_practice_id") // ID in customer EHR/system e.g. "practice_001"
+  name               String
+  timezone           String         @default("America/New_York") // IANA timezone
+  phone              String?
+  status             PracticeStatus @default(ACTIVE)
+  createdAt          DateTime       @default(now()) @map("created_at")
+  updatedAt          DateTime       @updatedAt @map("updated_at")
+
+  tenant             Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointments       Appointment[]
+
+  @@unique([tenantId, externalPracticeId])
+  @@index([tenantId])
+  @@map("practices")
+}
+
+model Appointment {
+  id                    String            @id @default(uuid())
+  tenantId              String            @map("tenant_id")
+  practiceId            String            @map("practice_id")
+  externalAppointmentId String            @map("external_appointment_id") // Customer system booking ID e.g. "APT-98231"
+  patientName           String            @map("patient_name")
+  patientPhone          String            @map("patient_phone")
+  appointmentDate       String            @map("appointment_date") // YYYY-MM-DD
+  appointmentTime       String            @map("appointment_time") // HH:MM:SS
+  timezone              String            @default("America/New_York")
+  appointmentTimestamp  DateTime          @map("appointment_timestamp") // UTC normalized timestamp
+  doctorName            String            @map("doctor_name")
+  status                AppointmentStatus @default(SCHEDULED)
+  idempotencyKey        String?           @map("idempotency_key")
+  cancellationReason    String?           @map("cancellation_reason")
+  cancelledAt           DateTime?         @map("cancelled_at")
+  confirmedAt           DateTime?         @map("confirmed_at")
+  confirmationSource    String?           @map("confirmation_source") // sms_reply, voice_dtmf, link
+  createdAt             DateTime          @default(now()) @map("created_at")
+  updatedAt             DateTime          @updatedAt @map("updated_at")
+
+  tenant                Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  practice              Practice          @relation(fields: [practiceId], references: [id], onDelete: Cascade)
+  reminders             Reminder[]
+  patientResponses      PatientResponse[]
+
+  @@unique([tenantId, externalAppointmentId])
+  @@index([tenantId, status])
+  @@index([practiceId])
+  @@index([appointmentTimestamp])
+  @@map("appointments")
+}
+
+model Reminder {
+  id            String          @id @default(uuid())
+  tenantId      String          @map("tenant_id")
+  appointmentId String          @map("appointment_id")
+  channel       ReminderChannel // SMS or VOICE
+  scheduledFor  DateTime        @map("scheduled_for") // Exact scheduled UTC execution time
+  leadMinutes   Int             @map("lead_minutes") // 60, 30, etc.
+  status        ReminderStatus  @default(SCHEDULED)
+  sentAt        DateTime?       @map("sent_at")
+  providerRef   String?         @map("provider_ref") // Twilio SID / call SID
+  retryCount    Int             @default(0) @map("retry_count")
+  maxRetries    Int             @default(3) @map("max_retries")
+  failureReason String?         @map("failure_reason")
+  createdAt     DateTime        @default(now()) @map("created_at")
+  updatedAt     DateTime        @updatedAt @map("updated_at")
+
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  appointment   Appointment     @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@index([appointmentId])
+  @@index([scheduledFor, status])
+  @@map("reminders")
+}
+
+model PatientResponse {
+  id            String                @id @default(uuid())
+  appointmentId String                @map("appointment_id")
+  source        ResponseChannel       // SMS_REPLY, VOICE_DTMF, SECURE_LINK
+  action        PatientResponseAction // CONFIRMED, CANCELLED
+  rawPayload    String?               @map("raw_payload") // Sanitized payload
+  receivedAt    DateTime              @default(now()) @map("received_at")
+
+  appointment   Appointment           @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+
+  @@index([appointmentId])
+  @@map("patient_responses")
+}
+
+model AuditEvent {
+  id         String   @id @default(uuid())
+  tenantId   String   @map("tenant_id")
+  actor      String   // e.g. "api_key:vk_live_...", "system:scheduler", "user:admin"
+  action     String   // "appointment.created", "appointment.cancelled", "api_key.created"
+  resource   String   // "appointment", "reminder", "tenant"
+  resourceId String   @map("resource_id")
+  details    Json?    // Sanitized operational metadata (NO raw ePHI)
+  ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, action])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+  @@map("audit_events")
+}
+
+model UsageEvent {
+  id         String   @id @default(uuid())
+  tenantId   String   @map("tenant_id")
+  eventType  String   @map("event_type") // "sms.sent", "voice.call.connected", "api.request"
+  quantity   Int      @default(1)
+  units      String   @default("segment") // "segment", "second", "request"
+  metadata   Json?    // Operational billing metadata, NO ePHI
+  timestamp  DateTime @default(now())
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, eventType])
+  @@index([timestamp])
+  @@map("usage_events")
+}
+
+model WebhookEvent {
+  id           String    @id @default(uuid())
+  tenantId     String    @map("tenant_id")
+  eventType    String    @map("event_type") // "appointment.confirmed", "appointment.cancelled"
+  status       String    @default("pending") // "pending", "delivered", "failed"
+  attemptCount Int       @default(0) @map("attempt_count")
+  payload      Json
+  deliveredAt  DateTime? @map("delivered_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  tenant       Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, status])
+  @@map("webhook_events")
+}
