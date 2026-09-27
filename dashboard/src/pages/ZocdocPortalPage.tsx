@@ -98,8 +98,6 @@ export const ZocdocPortalPage = ({ activeTab = 'zocdoc', onTabChange }: ZocdocPo
             <span>• Practice &amp; Patient Delivery Operations</span>
           </div>
           <div className="flex items-center gap-4 text-slate-400">
-            <span>HIPAA Compliant Delivery</span>
-            <span>•</span>
             <span>256-bit TLS Encrypted</span>
             <span>•</span>
             <span>Audit Logging Active</span>

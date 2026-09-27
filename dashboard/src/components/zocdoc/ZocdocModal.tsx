@@ -40,7 +40,7 @@ export const ZocdocModal = ({ appointment, onClose }: ZocdocModalProps) => {
         {/* Modal Content */}
         <div className="p-6 overflow-y-auto space-y-6">
           {/* Summary Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
               <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Time Slot</span>
               <p className="text-sm font-bold text-[#182743] mt-0.5">{appointment.time}</p>
@@ -56,12 +56,6 @@ export const ZocdocModal = ({ appointment, onClose }: ZocdocModalProps) => {
                 appointment.status === 'At Risk' ? 'text-amber-700' : 'text-slate-700'
               }`}>
                 {appointment.status}
-              </p>
-            </div>
-            <div className="p-3 bg-slate-50 rounded-xl border border-slate-100">
-              <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wide">Zocdoc Sync</span>
-              <p className="text-sm font-bold text-emerald-700 mt-0.5 flex items-center gap-1">
-                ✓ 200 OK
               </p>
             </div>
           </div>
@@ -287,7 +281,7 @@ export const ZocdocModal = ({ appointment, onClose }: ZocdocModalProps) => {
                             : 'text-slate-400'
                         }`}
                       >
-                        {step4State === 'completed' ? 'Synced (200 OK)' : 'Upcoming'}
+                        {step4State === 'completed' ? 'Success' : 'Upcoming'}
                       </span>
                     )}
                   </div>
