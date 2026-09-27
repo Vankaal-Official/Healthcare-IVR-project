@@ -58,7 +58,11 @@ export const VanKaalPortalPage = () => {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 3000);
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') {
+        fetchData();
+      }
+    }, 20000);
     return () => clearInterval(interval);
   }, [fetchData]);
 

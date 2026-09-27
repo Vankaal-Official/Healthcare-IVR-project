@@ -31,11 +31,19 @@ export class PhiMaskingLoggerInterceptor implements NestInterceptor {
           const statusCode = res.statusCode;
           const sanitizedResponse = data ? PhiMasker.sanitize(data) : {};
 
-          this.logger.log(
-            `[${method}] ${originalUrl} ${statusCode} - ${duration}ms | IP: ${ip} | UA: ${userAgent} | Payload: ${JSON.stringify(
-              sanitizedBody,
-            )} | Response: ${JSON.stringify(sanitizedResponse)}`,
-          );
+          // Suppress high-frequency routine polling from filling up terminal logs
+          const isRoutinePoll =
+            method === 'GET' &&
+            (originalUrl.startsWith('/v1/appointments') ||
+              originalUrl.startsWith('/v1/tenants/telemetry'));
+
+          if (!isRoutinePoll) {
+            this.logger.log(
+              `[${method}] ${originalUrl} ${statusCode} - ${duration}ms | IP: ${ip} | UA: ${userAgent} | Payload: ${JSON.stringify(
+                sanitizedBody,
+              )} | Response: ${JSON.stringify(sanitizedResponse)}`,
+            );
+          }
         },
         error: (err) => {
           const duration = Date.now() - startTime;

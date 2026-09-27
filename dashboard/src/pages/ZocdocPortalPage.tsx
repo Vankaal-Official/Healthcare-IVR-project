@@ -34,7 +34,12 @@ export const ZocdocPortalPage = ({ activeTab = 'zocdoc', onTabChange }: ZocdocPo
 
   useEffect(() => {
     fetchAppointments();
-    const interval = setInterval(fetchAppointments, 5000);
+    const interval = setInterval(() => {
+      // Only poll when the user is actively viewing this tab
+      if (document.visibilityState === 'visible') {
+        fetchAppointments();
+      }
+    }, 20000);
     return () => clearInterval(interval);
   }, [fetchAppointments]);
 
