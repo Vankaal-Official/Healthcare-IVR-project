@@ -1,11 +1,22 @@
+import { LogOut, UserCheck } from 'lucide-react';
+
 interface Props {
   onRefresh?: () => void;
   isLoading?: boolean;
   activeTab?: 'demo' | 'zocdoc';
   onTabChange?: (tab: 'demo' | 'zocdoc') => void;
+  isAuthenticated?: boolean;
+  staffUser?: { name: string; email: string; practice: string } | null;
+  onLogout?: () => void;
 }
 
-export const ZocdocHeader = ({ activeTab = 'zocdoc', onTabChange }: Props) => {
+export const ZocdocHeader = ({
+  activeTab = 'zocdoc',
+  onTabChange,
+  isAuthenticated,
+  staffUser,
+  onLogout,
+}: Props) => {
   return (
     <header className="bg-white border-b border-slate-200/80 sticky top-0 z-30 shadow-xs">
       {/* Top Banner with Zocdoc Signature Yellow accent */}
@@ -30,7 +41,7 @@ export const ZocdocHeader = ({ activeTab = 'zocdoc', onTabChange }: Props) => {
           </div>
         </div>
 
-        {/* Right Section: Navigation Switcher */}
+        {/* Right Section: Navigation Switcher & Staff Profile */}
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
           {/* Navigation Switcher Pills */}
           <nav className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
@@ -59,6 +70,25 @@ export const ZocdocHeader = ({ activeTab = 'zocdoc', onTabChange }: Props) => {
               <span>Zocdoc Clinic Hub</span>
             </button>
           </nav>
+
+          {/* Authenticated Staff Pill with Logout */}
+          {isAuthenticated && (
+            <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
+              <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium">
+                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
+                <span>{staffUser?.name || 'Staff User'}</span>
+              </div>
+              <button
+                type="button"
+                onClick={onLogout}
+                className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 hover:border-rose-200 text-slate-600 rounded-lg text-xs font-semibold transition cursor-pointer"
+                title="Log out of Clinic Workstation"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Sign Out</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </header>

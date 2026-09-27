@@ -95,8 +95,7 @@ export const ZocdocTable: React.FC<ZocdocTableProps> = ({
               filteredAppointments.map((app) => (
                 <tr
                   key={app.appointment_id}
-                  className="hover:bg-amber-50/20 transition-colors group cursor-pointer"
-                  onClick={() => onSelectAppointment(app)}
+                  className="hover:bg-slate-50/80 transition-colors group"
                 >
                   {/* Patient & ID */}
                   <td className="py-4 px-6">
