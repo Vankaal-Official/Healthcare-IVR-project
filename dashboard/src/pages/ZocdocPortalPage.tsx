@@ -17,27 +17,14 @@ export const ZocdocPortalPage = ({ activeTab = 'zocdoc', onTabChange }: ZocdocPo
     return localStorage.getItem('zocdoc_auth') === 'true';
   });
 
-  const [staffUser, setStaffUser] = useState<{ name: string; email: string; practice: string } | null>(() => {
-    const saved = localStorage.getItem('zocdoc_staff_user');
-    return saved
-      ? JSON.parse(saved)
-      : {
-          name: 'Front Desk Staff',
-          email: 'reception@manhattanhealth.org',
-          practice: 'Manhattan Health Center',
-        };
-  });
-
   const [appointments, setAppointments] = useState<ZocdocAppointment[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<ZocdocAppointment | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleLogin = (user: { name: string; email: string; practice: string }) => {
+  const handleLogin = () => {
     setIsAuthenticated(true);
-    setStaffUser(user);
     localStorage.setItem('zocdoc_auth', 'true');
-    localStorage.setItem('zocdoc_staff_user', JSON.stringify(user));
   };
 
   const handleLogout = () => {
@@ -75,14 +62,13 @@ export const ZocdocPortalPage = ({ activeTab = 'zocdoc', onTabChange }: ZocdocPo
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] text-slate-800 font-sans antialiased">
-      {/* 1. Zocdoc Header: Partner Portal + System Operational + Navigation + Staff Info */}
+      {/* 1. Zocdoc Header: Partner Portal + System Operational + Navigation */}
       <ZocdocHeader
         onRefresh={fetchAppointments}
         isLoading={isLoading}
         activeTab={activeTab}
         onTabChange={onTabChange}
         isAuthenticated={isAuthenticated}
-        staffUser={staffUser}
         onLogout={handleLogout}
       />
 

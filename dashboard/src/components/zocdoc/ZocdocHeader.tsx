@@ -1,4 +1,4 @@
-import { LogOut, UserCheck } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 
 interface Props {
   onRefresh?: () => void;
@@ -6,7 +6,6 @@ interface Props {
   activeTab?: 'demo' | 'zocdoc';
   onTabChange?: (tab: 'demo' | 'zocdoc') => void;
   isAuthenticated?: boolean;
-  staffUser?: { name: string; email: string; practice: string } | null;
   onLogout?: () => void;
 }
 
@@ -14,7 +13,6 @@ export const ZocdocHeader = ({
   activeTab = 'zocdoc',
   onTabChange,
   isAuthenticated,
-  staffUser,
   onLogout,
 }: Props) => {
   return (
@@ -71,21 +69,17 @@ export const ZocdocHeader = ({
             </button>
           </nav>
 
-          {/* Authenticated Staff Pill with Logout */}
+          {/* Authenticated Sign Out Button */}
           {isAuthenticated && (
-            <div className="flex items-center gap-2 pl-2 border-l border-slate-200">
-              <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-700 font-medium">
-                <UserCheck className="w-3.5 h-3.5 text-emerald-600" />
-                <span>{staffUser?.name || 'Staff User'}</span>
-              </div>
+            <div className="flex items-center pl-2 border-l border-slate-200">
               <button
                 type="button"
                 onClick={onLogout}
-                className="flex items-center gap-1 px-2.5 py-1 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 hover:border-rose-200 text-slate-600 rounded-lg text-xs font-semibold transition cursor-pointer"
+                className="flex items-center gap-1 px-2.5 py-1.5 bg-slate-100 hover:bg-rose-50 hover:text-rose-600 border border-slate-200 hover:border-rose-200 text-slate-600 rounded-lg text-xs font-semibold transition cursor-pointer"
                 title="Log out of Clinic Workstation"
               >
                 <LogOut className="w-3.5 h-3.5" />
-                <span className="hidden sm:inline">Sign Out</span>
+                <span>Sign Out</span>
               </button>
             </div>
           )}
