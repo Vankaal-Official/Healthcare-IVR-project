@@ -11,91 +11,8 @@ interface ZocdocPortalPageProps {
   onTabChange?: (tab: 'demo' | 'zocdoc') => void;
 }
 
-const FALLBACK_APPOINTMENTS: ZocdocAppointment[] = [
-  {
-    appointment_id: 'APT-84920',
-    patient_name: 'Alex Morgan',
-    patient_phone_masked: '+1 (555) ***-9727',
-    doctor: 'Dr. Michael Smith',
-    practice_name: 'Manhattan Health Center',
-    time: '10:30 AM',
-    date: '2026-10-01',
-    sms_status: 'Delivered',
-    sms_scheduled_at: '2026-09-30T10:00:00Z',
-    sms_delivered_at: '2026-09-30T10:00:15Z',
-    voice_status: 'Delivered',
-    voice_scheduled_at: '2026-09-30T12:00:00Z',
-    voice_completed_at: '2026-09-30T12:02:18Z',
-    status: 'Confirmed',
-    raw_status: 'CONFIRMED',
-    patient_response: {
-      channel: 'Voice DTMF',
-      response: 'confirmed',
-      received_at: '2026-09-30T12:02:15Z',
-    },
-    webhook_status: 'Delivered',
-  },
-  {
-    appointment_id: 'APT-84921',
-    patient_name: 'Sarah Connor',
-    patient_phone_masked: '+1 (555) ***-4821',
-    doctor: 'Dr. Emily Vance',
-    practice_name: 'Downtown Cardiology & Wellness',
-    time: '11:15 AM',
-    date: '2026-10-01',
-    sms_status: 'Delivered',
-    sms_scheduled_at: '2026-09-30T10:00:00Z',
-    sms_delivered_at: '2026-09-30T10:00:18Z',
-    voice_status: 'Pending',
-    status: 'Confirmed',
-    raw_status: 'CONFIRMED',
-    patient_response: {
-      channel: 'SMS Reply',
-      response: 'confirmed',
-      received_at: '2026-09-30T10:04:12Z',
-    },
-    webhook_status: 'Delivered',
-  },
-  {
-    appointment_id: 'APT-84922',
-    patient_name: 'Carlos Mendez',
-    patient_phone_masked: '+1 (555) ***-3190',
-    doctor: 'Dr. Robert Patel',
-    practice_name: 'Metro Pediatrics Clinic',
-    time: '02:00 PM',
-    date: '2026-10-01',
-    sms_status: 'Delivered',
-    sms_scheduled_at: '2026-09-30T10:00:00Z',
-    voice_status: 'Pending',
-    status: 'Pending',
-    raw_status: 'PENDING',
-    webhook_status: 'Pending',
-  },
-  {
-    appointment_id: 'APT-84923',
-    patient_name: 'David Reynolds',
-    patient_phone_masked: '+1 (555) ***-6712',
-    doctor: 'Dr. Michael Smith',
-    practice_name: 'Manhattan Health Center',
-    time: '03:45 PM',
-    date: '2026-10-01',
-    sms_status: 'Delivered',
-    sms_scheduled_at: '2026-09-30T10:00:00Z',
-    voice_status: 'Delivered',
-    voice_completed_at: '2026-09-30T12:05:00Z',
-    status: 'At Risk',
-    raw_status: 'AT_RISK',
-    patient_response: {
-      channel: 'Voice DTMF',
-      response: 'cancelled',
-      received_at: '2026-09-30T12:04:55Z',
-    },
-    webhook_status: 'Delivered',
-  },
-];
-
 export const ZocdocPortalPage = ({ activeTab = 'zocdoc', onTabChange }: ZocdocPortalPageProps) => {
-  const [appointments, setAppointments] = useState<ZocdocAppointment[]>(FALLBACK_APPOINTMENTS);
+  const [appointments, setAppointments] = useState<ZocdocAppointment[]>([]);
   const [selectedAppointment, setSelectedAppointment] = useState<ZocdocAppointment | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
@@ -104,12 +21,12 @@ export const ZocdocPortalPage = ({ activeTab = 'zocdoc', onTabChange }: ZocdocPo
     setIsLoading(true);
     try {
       const data = await apiFetch('/v1/appointments');
-      if (Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data)) {
         setAppointments(data);
         setError(null);
       }
     } catch (_err) {
-      // Quietly retain demo baseline appointments if backend is not linked yet
+      // Backend not linked yet or empty
     } finally {
       setIsLoading(false);
     }
