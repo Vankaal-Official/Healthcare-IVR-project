@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   PhoneCall,
   PhoneForwarded,
@@ -52,9 +52,6 @@ export const DemoPage: React.FC<DemoPageProps> = ({ activeTab = 'demo', onTabCha
   const [liveTranscript, setLiveTranscript] = useState<string>('');
   const [messages, setMessages] = useState<any[]>([]);
 
-  const timerRef = useRef<any>(null);
-  const pollIntervalRef = useRef<any>(null);
-
   // Current Country-Matched Placeholder
   const matchedCountry = COUNTRY_CODES.find((c) => c.code === selectedCountry);
   const currentPlaceholder = matchedCountry?.placeholder || 'e.g. (555) 000-0000';
@@ -89,12 +86,6 @@ export const DemoPage: React.FC<DemoPageProps> = ({ activeTab = 'demo', onTabCha
     setLiveTranscript('');
     setMessages([]);
 
-    // Start timer immediately upon user action
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setCallDuration((prev) => prev + 1);
-    }, 1000);
-
     try {
       const data = await apiFetch('/v1/voice-agent/demo-call', {
         method: 'POST',
@@ -116,6 +107,7 @@ export const DemoPage: React.FC<DemoPageProps> = ({ activeTab = 'demo', onTabCha
 
       setActiveCallId(data.callId);
       setCallActive(true);
+      setIsCalling(false);
       setCallStatusText('IN-CALL');
     } catch (err: any) {
       console.error('Call dispatch error:', err);
@@ -123,7 +115,6 @@ export const DemoPage: React.FC<DemoPageProps> = ({ activeTab = 'demo', onTabCha
       setCallStatusText('IDLE');
       setIsCalling(false);
       setCallActive(false);
-      if (timerRef.current) clearInterval(timerRef.current);
     }
   };
 
@@ -135,13 +126,22 @@ export const DemoPage: React.FC<DemoPageProps> = ({ activeTab = 'demo', onTabCha
       const data = await apiFetch(`/v1/voice-agent/call-status/${activeCallId}`);
       if (!data) return;
 
-      if (data.status === 'in-progress' || data.status === 'ringing') {
+      if (
+        data.status === 'in-progress' ||
+        data.status === 'ringing' ||
+        data.status === 'queued' ||
+        data.status === 'forwarding'
+      ) {
         setCallStatusText('IN-CALL');
       } else if (data.status === 'ended') {
         setCallStatusText('ENDED');
         setCallActive(false);
         setIsCalling(false);
-        if (timerRef.current) clearInterval(timerRef.current);
+      }
+
+      // Sync duration with provider telemetry if higher
+      if (typeof data.duration === 'number' && data.duration > 0) {
+        setCallDuration((prev) => Math.max(prev, data.duration));
       }
 
       if (data.transcript) {
@@ -155,16 +155,25 @@ export const DemoPage: React.FC<DemoPageProps> = ({ activeTab = 'demo', onTabCha
     }
   }, [activeCallId]);
 
+  // Uninterrupted Call Duration Timer Effect
   useEffect(() => {
-    if (activeCallId) {
-      pollStatus();
-      pollIntervalRef.current = setInterval(pollStatus, 2000);
-    }
-    return () => {
-      if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [activeCallId, pollStatus]);
+    if (!callActive && !isCalling) return;
+
+    const timer = setInterval(() => {
+      setCallDuration((prev) => prev + 1);
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [callActive, isCalling]);
+
+  // Active Call Status & Transcript Polling Effect
+  useEffect(() => {
+    if (!activeCallId || !callActive) return;
+
+    pollStatus();
+    const interval = setInterval(pollStatus, 2000);
+    return () => clearInterval(interval);
+  }, [activeCallId, callActive, pollStatus]);
 
   const formatSeconds = (sec: number) => {
     const mins = Math.floor(sec / 60);
