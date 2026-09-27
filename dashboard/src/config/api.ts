@@ -7,7 +7,12 @@
 export const getApiBaseUrl = (): string => {
   const envUrl = import.meta.env.VITE_API_URL;
   if (envUrl && typeof envUrl === 'string' && envUrl.trim().length > 0) {
-    return envUrl.replace(/\/+$/, '');
+    let clean = envUrl.trim().replace(/\/+$/, '');
+    // Strip trailing /v1 if the user entered it in VITE_API_URL
+    if (clean.endsWith('/v1')) {
+      clean = clean.slice(0, -3);
+    }
+    return clean;
   }
   // If running locally on localhost, relative URLs work with Vite's dev proxy
   return '';
@@ -15,7 +20,15 @@ export const getApiBaseUrl = (): string => {
 
 export const apiFetch = async (endpoint: string, options?: RequestInit): Promise<any> => {
   const baseUrl = getApiBaseUrl();
-  const cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  let cleanEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+
+  // Prevent accidental double /v1/ if both baseUrl and endpoint contain /v1
+  if (baseUrl.endsWith('/v1') && cleanEndpoint.startsWith('/v1/')) {
+    cleanEndpoint = cleanEndpoint.replace(/^\/v1/, '');
+  } else if (cleanEndpoint.startsWith('/v1/v1/')) {
+    cleanEndpoint = cleanEndpoint.replace(/^\/v1/, '');
+  }
+
   const fullUrl = `${baseUrl}${cleanEndpoint}`;
 
   const res = await fetch(fullUrl, {
