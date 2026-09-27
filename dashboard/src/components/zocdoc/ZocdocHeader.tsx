@@ -37,9 +37,29 @@ export const ZocdocHeader = ({}: Props) => {
           </div>
         </div>
 
-        {/* Date Indicator */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700">
+        {/* Right Section: Navigation Switcher & Date */}
+        <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
+          {/* Direct Navigation to Live Demo Simulator */}
+          <a
+            href="/demo"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#FACC15] hover:bg-[#EAB308] text-slate-900 text-xs font-bold font-mono shadow-xs transition border border-yellow-400"
+            title="Launch Interactive Live Voice AI Simulator"
+          >
+            <span className="w-2 h-2 rounded-full bg-slate-900 animate-pulse" />
+            <span>⚡ Interactive Demo</span>
+          </a>
+
+          {/* Direct Navigation to Van-Kaal Telemetry */}
+          <a
+            href="/vankaal"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition border border-slate-200"
+            title="View Van-Kaal Telemetry & Financial Invoicing"
+          >
+            <span>Operations Telemetry</span>
+          </a>
+
+          {/* Date Indicator */}
+          <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-600">
             <Calendar className="w-3.5 h-3.5 text-slate-400" />
             <span>{todayStr}</span>
           </div>

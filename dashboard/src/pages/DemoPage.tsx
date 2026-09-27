@@ -13,6 +13,7 @@ import {
   Bot,
   UserCheck,
 } from 'lucide-react';
+import { apiFetch } from '../config/api';
 
 const COUNTRY_CODES = [
   { code: '+1', country: 'United States', flag: '🇺🇸', placeholder: 'e.g. (555) 000-0000' },
@@ -90,7 +91,7 @@ export const DemoPage: React.FC = () => {
     }, 1000);
 
     try {
-      const response = await fetch('/v1/voice-agent/demo-call', {
+      const data = await apiFetch('/v1/voice-agent/demo-call', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -104,10 +105,8 @@ export const DemoPage: React.FC = () => {
         }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || 'Failed to dispatch live outbound call');
+      if (!data || !data.callId) {
+        throw new Error(data?.message || 'Failed to dispatch live outbound call');
       }
 
       setActiveCallId(data.callId);
@@ -128,10 +127,8 @@ export const DemoPage: React.FC = () => {
     if (!activeCallId) return;
 
     try {
-      const res = await fetch(`/v1/voice-agent/call-status/${activeCallId}`);
-      if (!res.ok) return;
-
-      const data = await res.json();
+      const data = await apiFetch(`/v1/voice-agent/call-status/${activeCallId}`);
+      if (!data) return;
 
       if (data.status === 'in-progress' || data.status === 'ringing') {
         setCallStatusText('IN-CALL');

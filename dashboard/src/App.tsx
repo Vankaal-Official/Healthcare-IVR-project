@@ -25,6 +25,16 @@ export default function App() {
     currentPath.startsWith('/vankaal/') ||
     currentPath === '/admin';
 
+  useEffect(() => {
+    if (isDemo) {
+      document.title = 'Van-Kaal | Interactive Voice AI Simulator';
+    } else if (isVanKaal) {
+      document.title = 'Van-Kaal | Healthcare Operations & Telemetry';
+    } else {
+      document.title = 'Zocdoc | Clinic Appointment Reminders Hub';
+    }
+  }, [isDemo, isVanKaal]);
+
   if (isDemo) {
     return <DemoPage />;
   }

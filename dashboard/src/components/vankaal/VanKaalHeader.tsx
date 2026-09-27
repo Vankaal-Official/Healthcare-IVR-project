@@ -46,12 +46,22 @@ export const VanKaalHeader = () => {
             <span className="text-amber-700 font-bold font-mono">Active</span>
           </div>
 
+          {/* Quick link to Zocdoc EHR */}
+          <a
+            href="/"
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition border border-slate-200"
+            title="Open Zocdoc Clinic Portal"
+          >
+            <span>Zocdoc EHR</span>
+          </a>
+
           {/* Quick link to Live Simulator */}
           <a
             href="/demo"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#FACC15] hover:bg-[#EAB308] text-slate-900 text-xs font-bold font-mono shadow-sm transition border border-yellow-400/50"
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#FACC15] hover:bg-[#EAB308] text-slate-900 text-xs font-bold font-mono shadow-sm transition border border-yellow-400"
             title="Launch Interactive Live Voice AI Simulator"
           >
+            <span className="w-2 h-2 rounded-full bg-slate-900 animate-pulse" />
             <span>⚡ Live Simulator</span>
           </a>
         </div>

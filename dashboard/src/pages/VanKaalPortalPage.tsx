@@ -4,6 +4,7 @@ import { VanKaalStatsCards } from '../components/vankaal/VanKaalStatsCards';
 import { VanKaalBillingSummary } from '../components/vankaal/VanKaalBillingSummary';
 import { VanKaalActivityLog } from '../components/vankaal/VanKaalActivityLog';
 import type { ZocdocAppointment, VanKaalMetrics } from '../types/portal';
+import { apiFetch } from '../config/api';
 
 export interface VanKaalTelemetry {
   metrics: VanKaalMetrics;
@@ -31,26 +32,22 @@ export const VanKaalPortalPage = () => {
     try {
       // 1. Fetch Telemetry
       try {
-        let res = await fetch('/v1/tenants/telemetry');
-        if (!res.ok) res = await fetch('http://localhost:3000/v1/tenants/telemetry');
-        if (res.ok) {
-          const data = await res.json();
+        const data = await apiFetch('/v1/tenants/telemetry');
+        if (data) {
           setTelemetry(data);
         }
       } catch (err) {
-        console.error('Failed to fetch Van-Kaal telemetry:', err);
+        console.warn('Telemetry sync notice:', err);
       }
 
       // 2. Fetch Appointments & Call Outcomes
       try {
-        let aptRes = await fetch('/v1/appointments');
-        if (!aptRes.ok) aptRes = await fetch('http://localhost:3000/v1/appointments');
-        if (aptRes.ok) {
-          const aptData = await aptRes.json();
+        const aptData = await apiFetch('/v1/appointments');
+        if (Array.isArray(aptData)) {
           setAppointments(aptData);
         }
       } catch (err) {
-        console.error('Failed to fetch appointments:', err);
+        console.warn('Appointments sync notice:', err);
       }
 
       setLastUpdated(new Date().toLocaleTimeString());

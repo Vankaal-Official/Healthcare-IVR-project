@@ -3,6 +3,7 @@ import { ZocdocHeader } from '../components/zocdoc/ZocdocHeader';
 import { ZocdocKpiCards } from '../components/zocdoc/ZocdocKpiCards';
 import { ZocdocTable } from '../components/zocdoc/ZocdocTable';
 import { ZocdocModal } from '../components/zocdoc/ZocdocModal';
+import { apiFetch } from '../config/api';
 import type { ZocdocAppointment } from '../types/portal';
 
 export const ZocdocPortalPage = () => {
@@ -13,25 +14,14 @@ export const ZocdocPortalPage = () => {
 
   const fetchAppointments = useCallback(async () => {
     try {
-      let res: Response;
-      try {
-        res = await fetch('/v1/appointments');
-      } catch {
-        res = await fetch('http://localhost:3000/v1/appointments');
-      }
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}: Failed to fetch live appointments`);
-      }
-
-      const data = await res.json();
+      const data = await apiFetch('/v1/appointments');
       if (Array.isArray(data)) {
         setAppointments(data);
         setError(null);
       }
     } catch (err: any) {
-      console.error('Failed to load appointments:', err);
-      setError(err?.message || 'Could not connect to live backend');
+      // Clean, professional notice instead of raw JSON syntax errors
+      setError(err?.message || 'Connecting to backend API...');
     } finally {
       setIsLoading(false);
     }
