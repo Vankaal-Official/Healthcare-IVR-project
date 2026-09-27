@@ -1,48 +1,34 @@
 import { useState, useEffect } from 'react';
-import { ZocdocPortalPage } from './pages/ZocdocPortalPage';
-import { VanKaalPortalPage } from './pages/VanKaalPortalPage';
 import { DemoPage } from './pages/DemoPage';
+import { ZocdocPortalPage } from './pages/ZocdocPortalPage';
 
 export default function App() {
-  const [currentPath, setCurrentPath] = useState<string>(() => {
-    return window.location.pathname;
+  const [activeTab, setActiveTab] = useState<'demo' | 'zocdoc'>(() => {
+    // If URL explicitly asks for zocdoc, honor it; otherwise default to interactive demo
+    const path = window.location.pathname.toLowerCase();
+    const search = window.location.search.toLowerCase();
+    if (path.includes('zocdoc') || search.includes('tab=zocdoc')) {
+      return 'zocdoc';
+    }
+    return 'demo';
   });
 
   useEffect(() => {
-    const handlePopState = () => {
-      setCurrentPath(window.location.pathname);
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, []);
-
-  const isDemo =
-    currentPath === '/demo' ||
-    currentPath.startsWith('/demo');
-
-  const isVanKaal =
-    currentPath === '/vankaal' ||
-    currentPath.startsWith('/vankaal/') ||
-    currentPath === '/admin';
-
-  useEffect(() => {
-    if (isDemo) {
-      document.title = 'Van-Kaal | Interactive Voice AI Simulator';
-    } else if (isVanKaal) {
-      document.title = 'Van-Kaal | Healthcare Operations & Telemetry';
+    if (activeTab === 'demo') {
+      document.title = 'Van-Kaal | Interactive Voice AI Demo';
     } else {
-      document.title = 'Zocdoc | Clinic Appointment Reminders Hub';
+      document.title = 'Zocdoc | Clinic Reminders & Attendance Hub';
     }
-  }, [isDemo, isVanKaal]);
+  }, [activeTab]);
 
-  if (isDemo) {
-    return <DemoPage />;
-  }
-
-  if (isVanKaal) {
-    return <VanKaalPortalPage />;
-  }
-
-  return <ZocdocPortalPage />;
+  return (
+    <div>
+      {activeTab === 'demo' ? (
+        <DemoPage activeTab={activeTab} onTabChange={setActiveTab} />
+      ) : (
+        <ZocdocPortalPage activeTab={activeTab} onTabChange={setActiveTab} />
+      )}
+    </div>
+  );
 }
 

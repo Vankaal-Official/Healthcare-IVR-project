@@ -27,7 +27,12 @@ const COUNTRY_CODES = [
   { code: '+971', country: 'UAE', flag: '🇦🇪', placeholder: 'e.g. 50 123 4567' },
 ];
 
-export const DemoPage: React.FC = () => {
+interface DemoPageProps {
+  activeTab?: 'demo' | 'zocdoc';
+  onTabChange?: (tab: 'demo' | 'zocdoc') => void;
+}
+
+export const DemoPage: React.FC<DemoPageProps> = ({ activeTab = 'demo', onTabChange }) => {
   // Form State
   const [selectedCountry, setSelectedCountry] = useState('+91');
   const [phoneDigits, setPhoneDigits] = useState('');
@@ -190,22 +195,32 @@ export const DemoPage: React.FC = () => {
 
           {/* Navigation Switcher Pills */}
           <nav className="flex items-center gap-1.5 sm:gap-2 bg-slate-100 p-1 rounded-xl border border-slate-200">
-            <a
-              href="/demo"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white text-slate-900 shadow-sm transition border border-slate-200"
+            <button
+              type="button"
+              onClick={() => onTabChange?.('demo')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition shadow-xs ${
+                activeTab === 'demo'
+                  ? 'bg-white text-slate-900 border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+              }`}
             >
-              <div className="w-2 h-2 rounded-full bg-amber-500" />
-              <span>Interactive Demo</span>
-            </a>
-            <a
-              href="/"
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-white/60 transition"
-              title="Open Zocdoc Clinic Portal"
+              <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+              <span>⚡ Interactive Demo</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onTabChange?.('zocdoc')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${
+                activeTab === 'zocdoc'
+                  ? 'bg-white text-slate-900 border border-slate-200 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+              }`}
+              title="Open Zocdoc Clinic Reminders Hub"
             >
               <Building2 className="w-3.5 h-3.5 text-slate-500" />
-              <span className="hidden sm:inline">Zocdoc Clinic EHR</span>
+              <span className="hidden sm:inline">Zocdoc Clinic Hub</span>
               <span className="sm:hidden">Zocdoc</span>
-            </a>
+            </button>
           </nav>
         </div>
       </header>

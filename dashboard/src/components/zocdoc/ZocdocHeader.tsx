@@ -3,9 +3,11 @@ import { Calendar } from 'lucide-react';
 interface Props {
   onRefresh?: () => void;
   isLoading?: boolean;
+  activeTab?: 'demo' | 'zocdoc';
+  onTabChange?: (tab: 'demo' | 'zocdoc') => void;
 }
 
-export const ZocdocHeader = ({}: Props) => {
+export const ZocdocHeader = ({ activeTab = 'zocdoc', onTabChange }: Props) => {
   const todayStr = new Date().toLocaleDateString('en-US', {
     weekday: 'short',
     month: 'short',
@@ -39,24 +41,33 @@ export const ZocdocHeader = ({}: Props) => {
 
         {/* Right Section: Navigation Switcher & Date */}
         <div className="flex flex-wrap items-center gap-2.5 sm:gap-3">
-          {/* Direct Navigation to Live Demo Simulator */}
-          <a
-            href="/demo"
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#FACC15] hover:bg-[#EAB308] text-slate-900 text-xs font-bold font-mono shadow-xs transition border border-yellow-400"
-            title="Launch Interactive Live Voice AI Simulator"
-          >
-            <span className="w-2 h-2 rounded-full bg-slate-900 animate-pulse" />
-            <span>⚡ Interactive Demo</span>
-          </a>
-
-          {/* Direct Navigation to Van-Kaal Telemetry */}
-          <a
-            href="/vankaal"
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold transition border border-slate-200"
-            title="View Van-Kaal Telemetry & Financial Invoicing"
-          >
-            <span>Operations Telemetry</span>
-          </a>
+          {/* Navigation Switcher Pills */}
+          <nav className="flex items-center gap-1.5 bg-slate-100 p-1 rounded-xl border border-slate-200">
+            <button
+              type="button"
+              onClick={() => onTabChange?.('demo')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition ${
+                activeTab === 'demo'
+                  ? 'bg-[#FACC15] text-slate-900 shadow-xs border border-yellow-400'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60'
+              }`}
+              title="Launch Interactive Live Voice AI Simulator"
+            >
+              <div className="w-2 h-2 rounded-full bg-slate-900 animate-pulse" />
+              <span>⚡ Interactive Demo</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => onTabChange?.('zocdoc')}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition ${
+                activeTab === 'zocdoc'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200 font-bold'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/60 font-semibold'
+              }`}
+            >
+              <span>Zocdoc Clinic Hub</span>
+            </button>
+          </nav>
 
           {/* Date Indicator */}
           <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-xl text-xs font-medium text-slate-600">
